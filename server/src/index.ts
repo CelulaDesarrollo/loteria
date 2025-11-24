@@ -6,6 +6,7 @@ import { RoomService } from "./services/roomService";
 import { Player } from "./types/game";
 import fastifyStatic from "@fastify/static";
 import path from "path";
+import { ServerResponse } from "http";
 
 async function startServer() {
   const fastify = Fastify({ logger: true });
@@ -189,16 +190,22 @@ async function startServer() {
     prefix: "/cards/",
     constraints: {},
     // headers para prevenir descarga y caché persistente
-    setHeaders: (res, path) => {
-      if (path.endsWith(".png") || path.endsWith(".jpg") || path.endsWith(".jpeg")) {
-        // Prevenir que el navegador cache la imagen de forma persistente
-        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-        // Indicar que no es para descargar
-        res.setHeader("Content-Disposition", "inline; filename=restricted");
-        // Prevenir acceso de terceros
-        res.setHeader("X-Content-Type-Options", "nosniff");
-        // Desabilitar CORS si es desde origen diferente (opcional)
-        res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "http://localhost:3000");
+    // Tipamos `res` como ServerResponse para que TS reconozca setHeader.
+    setHeaders: (res: ServerResponse, filePath: string) => {
+      if (typeof filePath === "string" && (filePath.endsWith(".png") || filePath.endsWith(".jpg") || filePath.endsWith(".jpeg"))) {
+        try {
+          // Prevenir que el navegador cache la imagen de forma persistente
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+          // Indicar que no es para descargar
+          res.setHeader("Content-Disposition", "inline; filename=restricted");
+          // Prevenir acceso de terceros
+          res.setHeader("X-Content-Type-Options", "nosniff");
+          // Controlar CORS para las imágenes (opcional)
+          res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "http://localhost:3000");
+        } catch (err) {
+          // Loguear con objeto y mensaje para cumplir overloads de pino/fastify.log
+          fastify.log.debug({ err: String(err) }, "setHeaders error");
+        }
       }
     }
   });
