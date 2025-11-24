@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { FastifyReply, FastifyRequest } from "fastify"; // Importamos FastifyReply y FastifyRequest
 import fastifyCors from "@fastify/cors";
 import fastifySocketIO from "fastify-socket.io";
 import { Server } from "socket.io";
@@ -6,6 +6,17 @@ import { RoomService } from "./services/roomService";
 import { Player } from "./types/game";
 import fastifyStatic from "@fastify/static";
 import path from "path";
+
+// Definimos los tipos para la función calculateFinalRanking (asumo que Player es conocido)
+const calculateFinalRanking = (players: Record<string, Player>) => {
+  return Object.values(players || {})
+    .map((p: any) => ({
+      name: p.name,
+      seleccionadas: Array.isArray(p.markedIndices) ? p.markedIndices.length : 0,
+    }))
+    .sort((a, b) => b.seleccionadas - a.seleccionadas);
+};
+
 
 async function startServer() {
   const fastify = Fastify({ logger: true });
@@ -29,7 +40,8 @@ async function startServer() {
   const isDev = process.env.NODE_ENV !== "production";
 
   // Función de PreHandler de Autenticación
-  const authenticateAdmin = (req: any, reply: any, done: () => void) => {
+  // Usamos tipos de Fastify
+  const authenticateAdmin = (req: FastifyRequest, reply: FastifyReply, done: () => void) => {
     const token = (req.headers['x-admin-token'] as string) || '';
     if (token !== ADMIN_TOKEN) {
       console.warn(`[Admin] Intento de acceso denegado. Token: ${token}`);
@@ -188,8 +200,8 @@ async function startServer() {
     root: path.join(__dirname, "../public"),
     prefix: "/cards/",
     constraints: {},
-    // headers para prevenir descarga y caché persistente
-    setHeaders: (res, path) => {
+    // Corregimos los errores TS7006 añadiendo tipos explícitos
+    setHeaders: (res: FastifyReply['raw'], path: string) => {
       if (path.endsWith(".png") || path.endsWith(".jpg") || path.endsWith(".jpeg")) {
         // Prevenir que el navegador cache la imagen de forma persistente
         res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
@@ -535,15 +547,3 @@ startServer().catch((err) => {
   console.error("❌ Error al iniciar el servidor:", err);
   process.exit(1);
 });
-
-// Helper: calcular ranking final basado en markedIndices actuales
-const calculateFinalRanking = (players: any) => {
-  return Object.values(players || {})
-    .map((p: any) => ({
-      name: p.name,
-      seleccionadas: Array.isArray(p.markedIndices) ? p.markedIndices.length : 0,
-    }))
-    .sort((a, b) => b.seleccionadas - a.seleccionadas);
-};
-
-
