@@ -16,12 +16,25 @@ import { Label } from "@/components/ui/label";
 import { BookOpen, Gamepad2, Loader2 } from "lucide-react";
 import { RoomFullModal } from "@/components/game/RoomFullModal";
 import { NameExistsModal } from "@/components/game/NameExistsModal";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
-const DEFAULT_ROOM_ID = "main_loteria";
-const MAX_PLAYERS = 100;
+const AVAILABLE_ROOMS = [
+  { id: "sala_1", label: "Sala 1" },
+  { id: "sala_2", label: "Sala 2" },
+  { id: "sala_3", label: "Sala 3" },
+  { id: "sala_4", label: "Sala 4" },
+];
+const MAX_PLAYERS_PER_ROOM = 25;
 
 export default function Home() {
   const [name, setName] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState("sala_1");
   const [showRoomFullModal, setShowRoomFullModal] = useState(false);
   const [showNameExistsModal, setShowNameExistsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,12 +45,12 @@ export default function Home() {
     if (isLoading) return;
 
     const trimmed = name.trim();
-    if (!trimmed) {
+    if (!trimmed || !selectedRoom) {
       return;
     }
 
     setIsLoading(true);
-    const roomId = DEFAULT_ROOM_ID;
+    const roomId = selectedRoom;
     const playerName = trimmed;
 
     const playerData = {
@@ -62,14 +75,14 @@ export default function Home() {
         return;
       }
 
-      // marca navegación intencional para que la sala no interprete esto como "reload"
+      // marca navegación intencional
       try {
         sessionStorage.setItem("loteria:justJoined", "1");
       } catch (e) {
         /* noop */
       }
 
-      // navegar a la sala (el estado se guarda en gameSocket.getLastRoom)
+      // navegar a la sala
       router.push(`/room/${roomId}?name=${encodeURIComponent(playerName)}`);
     } catch (err) {
       console.error("joinRoom error:", err);
@@ -87,12 +100,30 @@ export default function Home() {
             <CardHeader className="text-center">
               <img src="/loteria.png" alt="Lotería Logo" className="h-140 w-360" />
               <CardDescription className="pt-2 font-lato font-regular">
-                Ingresa tu nombre para unirte a la sala común.
+                Ingresa tu nombre y selecciona una sala para jugar.
               </CardDescription>
             </CardHeader>
 
             <CardContent>
               <form onSubmit={handleJoinRoom} className="space-y-6">
+                {/* Selector de sala */}
+                <div className="space-y-2">
+                  <Label htmlFor="room-select" className="text-base">Seleccionar Sala</Label>
+                  <Select value={selectedRoom} onValueChange={setSelectedRoom}>
+                    <SelectTrigger id="room-select" className="text-base">
+                      <SelectValue placeholder="Elige una sala" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_ROOMS.map((room) => (
+                        <SelectItem key={room.id} value={room.id}>
+                          {room.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Input de nombre */}
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-base">Nombre</Label>
                   <Input
@@ -151,7 +182,12 @@ export default function Home() {
         </div>
       </footer>
 
-      <RoomFullModal open={showRoomFullModal} onClose={() => setShowRoomFullModal(false)} roomId={DEFAULT_ROOM_ID} maxPlayers={MAX_PLAYERS} />
+      <RoomFullModal 
+        open={showRoomFullModal} 
+        onClose={() => setShowRoomFullModal(false)} 
+        roomId={selectedRoom}
+        maxPlayers={MAX_PLAYERS_PER_ROOM} 
+      />
       <NameExistsModal open={showNameExistsModal} onClose={() => setShowNameExistsModal(false)} />
     </div>
   );

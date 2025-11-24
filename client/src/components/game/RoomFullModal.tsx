@@ -20,8 +20,19 @@ interface RoomFullModalProps {
   maxPlayers?: number;
 }
 
-export function RoomFullModal({ open, onClose, roomId, maxPlayers = 100 }: RoomFullModalProps) {
+export function RoomFullModal({ open, onClose, roomId, maxPlayers = 25 }: RoomFullModalProps) {
   const router = useRouter();
+
+  // Mapear ID de sala a nombre legible
+  const getRoomLabel = (id: string) => {
+    const mapping: Record<string, string> = {
+      'sala_1': 'Sala 1',
+      'sala_2': 'Sala 2',
+      'sala_3': 'Sala 3',
+      'sala_4': 'Sala 4',
+    };
+    return mapping[id] || id;
+  };
 
   return (
     <AlertDialog open={open}>
@@ -49,19 +60,22 @@ export function RoomFullModal({ open, onClose, roomId, maxPlayers = 100 }: RoomF
             Sala llena
           </AlertDialogTitle>
           <AlertDialogDescription className="text-center text-sm text-muted-foreground mt-2">
-            {`La sala ${roomId ? `"${roomId}" ` : ""}ha alcanzado el límite de ${maxPlayers} jugadores.`}
+            {`La ${getRoomLabel(roomId || '')} ha alcanzado el límite de ${maxPlayers} jugadores.`}
             <br />
-            Intenta nuevamente cuando alguien se desconecte o únete a otra sala.
+            Intenta nuevamente cuando alguien se desconecte o elige otra sala.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter className="mt-6">
           <div className="w-full flex flex-col gap-3">
             <Button
-              onClick={onClose}
+              onClick={() => {
+                onClose();
+                router.push("/");
+              }}
               className="w-full bg-[hsl(180.85,61.74%,22.55%)] hover:bg-[hsl(180.85,61.74%,25%)] text-white"
             >
-              Intentar de nuevo
+              Seleccionar otra sala
             </Button>
             <Button
               onClick={() => router.push("/")}

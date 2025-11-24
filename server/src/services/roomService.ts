@@ -7,6 +7,7 @@ interface DBRoom {
 const cardIntervals: Map<string, any> = new Map();
 const CALL_INTERVAL = 3500; // 3.5 segundos entre cartas
 const MAX_PLAYERS = 100; // ajustar según necesidad
+const MAX_PLAYERS_PER_ROOM = 25; // Límite de 25 jugadores por sala
 
 export class RoomService {
   // locks por sala para serializar operaciones asíncronas (evitar carreras locales)
@@ -207,9 +208,10 @@ export class RoomService {
       return { added: false, reason: 'name_in_use' };
     }
 
-    // Verificar límite de jugadores
-    if (Object.keys(room.players || {}).length >= MAX_PLAYERS) {
-      return { added: false, reason: 'full' };
+    // Validar límite de jugadores (25 por sala)
+    const currentPlayerCount = room?.players ? Object.keys(room.players).length : 0;
+    if (currentPlayerCount >= MAX_PLAYERS_PER_ROOM) {
+      return { added: false, reason: "full" };
     }
 
     // Añadir nuevo jugador
