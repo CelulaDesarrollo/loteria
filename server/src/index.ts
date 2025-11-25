@@ -250,7 +250,12 @@ async function startServer() {
 
           const mode = payload?.gameMode || room.gameState?.gameMode || "full";
           const markedIndices = Array.isArray(payload?.markedIndices) ? payload.markedIndices : (player.markedIndices || []);
-          const board = payload?.board || player.board;
+          // Player type en el servidor puede no declarar `board`; forzamos el acceso de forma segura
+          const board = payload?.board ?? (player as any)?.board;
+          if (!board) {
+            socket.emit("claimWinResult", { success: false, error: "no_board" });
+            return;
+          }
           const firstCard = payload?.firstCard || null;
 
           // Validar con lógica centralizada
@@ -510,7 +515,7 @@ async function startServer() {
             RoomService.stopCallingCards(roomId);
           }
 
-          if (shouldClearMarks && room.players) {
+          if (shouldClearMarks) {
             Object.keys(room.players).forEach((k) => {
               const players = room.players as Record<string, Player>;
               // Limpiar las marcas después de haber guardado el ranking
