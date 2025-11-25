@@ -108,7 +108,7 @@ export default function Home() {
               <form onSubmit={handleJoinRoom} className="space-y-6">
                 {/* Selector de sala */}
                 <div className="space-y-2">
-                  <Label htmlFor="room-select" className="text-base">Seleccionar Sala</Label>
+                  <Label htmlFor="room-select" className="text-base">Seleccionar sala</Label>
                   <Select value={selectedRoom} onValueChange={setSelectedRoom}>
                     <SelectTrigger id="room-select" className="text-base">
                       <SelectValue placeholder="Elige una sala" />
