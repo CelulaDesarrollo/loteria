@@ -241,6 +241,7 @@ async function startServer() {
 
       // Cliente solicita que el servidor valide una victoria
       socket.on("claimWin", async (roomId: string, playerName: string, payload: any) => {
+        console.log("📥 claimWin recibido:", { roomId, playerName, payload });
         try {
           if (!roomId || !playerName) return;
           const room = await RoomService.getRoom(roomId);

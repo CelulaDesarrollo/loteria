@@ -119,20 +119,27 @@ export function createDeck(): Card[] {
 
 /**
  * Checks if a set of marked indices on a board constitutes a win.
+ * @param board The player's board (array of 16 Cards).
  * @param markedIndices The indices of the marked cards (0-15).
+ * @param gameMode The game mode ("full", "horizontal", "vertical", etc).
+ * @param firstCard The first card selected (null or {row, col}).
+ * @param calledCardIds Optional array of called card IDs for validation.
  * @returns True if a winning pattern is met, false otherwise.
  */
 export function checkWin(
-  markedIndices: number[],
   board: Card[],
-  calledCardIds: number[],
-  gameMode: string = "full"
+  markedIndices: number[],
+  gameMode: string = "full",
+  firstCard: { row: number; col: number } | null = null,
+  calledCardIds: number[] = []
 ): boolean {
   // Validar que las cartas marcadas estén en las llamadas
-  const validMarks = markedIndices.every(
-    (idx) => calledCardIds.includes(board[idx].id)
-  );
-  if (!validMarks) return false;
+  if (Array.isArray(calledCardIds) && calledCardIds.length > 0) {
+    const validMarks = markedIndices.every(
+      (idx) => idx < board.length && calledCardIds.includes(board[idx].id)
+    );
+    if (!validMarks) return false;
+  }
 
   switch (gameMode) {
     case "full":

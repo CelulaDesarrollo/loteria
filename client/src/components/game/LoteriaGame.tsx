@@ -220,6 +220,16 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
         const modeForCheck = effectiveMode || "full";
         const firstForCheck = firstCard || (modeForCheck !== "full" ? { row, col } : null);
 
+        console.log("📤 Emitiendo claimWin:", {
+          roomId,
+          playerName,
+          board: player.board.length,
+          markedIndices: updatedIndices,
+          gameMode: modeForCheck,
+          firstCard: firstForCheck,
+          calledCardIds: gameState.calledCardIds?.length || 0,
+        });
+
         // Enviar datos para que el servidor valide la jugada
         const claimResult = await gameSocket.emit(
           "claimWin",
@@ -232,9 +242,9 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
             firstCard: firstForCheck,
           }
         );
-        console.log("claimWin response:", claimResult);
+        console.log("✅ claimWin response:", claimResult);
       } catch (e) {
-        console.warn("claimWin error:", e);
+        console.error("❌ claimWin error:", e);
       }
     } catch (err) {
       console.error("Error al actualizar marcado:", err);
@@ -540,7 +550,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
                 players={allPlayers}
                 currentPlayerName={playerName}
                 hostName={gameState.host || ""}
-              // roomId removed
+                roomId={roomId}
               />
 
               {/* Botones de control del juego */}
