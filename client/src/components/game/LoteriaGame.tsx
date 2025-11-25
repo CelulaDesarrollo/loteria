@@ -192,7 +192,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     }
 
     try {
-      // Actualizar localmente primero (optimistic update)
+      // 1️⃣ Actualizar localmente primero (optimistic update)
       setRoomData((prev: any) => ({
         ...prev,
         players: {
@@ -204,9 +204,8 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
         },
       }));
 
-      // Emitir al servidor INMEDIATAMENTE y esperar confirmación
-      await gameSocket.updateRoom?.(roomId, {
-        ...roomData,
+      // 2️⃣ Emitir al servidor SIN esperar (fire and forget para no bloquear claimWin)
+      gameSocket.updateRoom?.(roomId, {
         players: {
           ...(roomData?.players || {}),
           [playerName]: {
@@ -214,24 +213,24 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
             markedIndices: updatedIndices,
           },
         },
+      }).catch(e => console.warn("updateRoom error:", e));
+
+      // 3️⃣ Validar victoria INMEDIATAMENTE (sin esperar updateRoom)
+      const modeForCheck = effectiveMode || "full";
+      const firstForCheck = firstCard || (modeForCheck !== "full" ? { row, col } : null);
+
+      console.log("📤 EMITIENDO claimWin:", {
+        roomId,
+        playerName,
+        boardLength: player.board.length,
+        markedIndices: updatedIndices,
+        markedCount: updatedIndices.length,
+        gameMode: modeForCheck,
+        firstCard: firstForCheck,
+        calledCardIds: gameState.calledCardIds,
       });
 
-      // Solicitar al servidor que valide la victoria (claimWin)
       try {
-        const modeForCheck = effectiveMode || "full";
-        const firstForCheck = firstCard || (modeForCheck !== "full" ? { row, col } : null);
-
-        console.log("📤 EMITIENDO claimWin:", {
-          roomId,
-          playerName,
-          boardLength: player.board.length,
-          markedIndices: updatedIndices,
-          markedCount: updatedIndices.length,
-          gameMode: modeForCheck,
-          firstCard: firstForCheck,
-          calledCardIds: gameState.calledCardIds,
-        });
-
         const claimResult = await gameSocket.emit(
           "claimWin",
           roomId,
@@ -247,11 +246,11 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
         if (claimResult?.success) {
           console.log("🎉 VICTORIA CONFIRMADA POR SERVIDOR");
         }
-      } catch (e) {
-        console.error("❌ Error emitiendo claimWin:", e);
+      } catch (claimErr) {
+        console.error("❌ Error emitiendo claimWin:", claimErr);
       }
     } catch (err) {
-      console.error("Error al actualizar marcado:", err);
+      console.error("Error en handleCardClick:", err);
       // Revertir si falla (rollback)
       setRoomData((prev: any) => ({
         ...prev,
