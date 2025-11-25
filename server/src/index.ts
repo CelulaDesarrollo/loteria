@@ -4,6 +4,7 @@ import fastifySocketIO from "fastify-socket.io";
 import { Server } from "socket.io";
 import { RoomService } from "./services/roomService";
 import { Player } from "./types/game";
+import { checkWin } from "./services/loteria"; // <-- añadir import
 import fastifyStatic from "@fastify/static";
 import path from "path";
 import { ServerResponse } from "http";
@@ -237,6 +238,55 @@ async function startServer() {
       console.log("Cliente conectado:", socket.id);
       socket.data.roomId = null;
       socket.data.playerName = null;
+
+      // Cliente solicita que el servidor valide una victoria
+      socket.on("claimWin", async (roomId: string, playerName: string, payload: any) => {
+        try {
+          if (!roomId || !playerName) return;
+          const room = await RoomService.getRoom(roomId);
+          if (!room || !room.players) return;
+          const player = room.players[playerName];
+          if (!player) return;
+
+          const mode = payload?.gameMode || room.gameState?.gameMode || "full";
+          const markedIndices = Array.isArray(payload?.markedIndices) ? payload.markedIndices : (player.markedIndices || []);
+          const board = payload?.board || player.board;
+          const firstCard = payload?.firstCard || null;
+
+          // Validar con lógica centralizada
+          const validWin = checkWin(board, markedIndices, mode, firstCard);
+          if (!validWin) {
+            socket.emit("claimWinResult", { success: false });
+            return;
+          }
+
+          // Si ya existe ganador evitar duplicados
+          if (room.gameState?.winner) {
+            socket.emit("claimWinResult", { success: false, alreadyWinner: true });
+            return;
+          }
+
+          // Fijar ganador, calcular ranking y detener bucle
+          room.gameState = {
+            ...(room.gameState || {}),
+            winner: playerName,
+            isGameActive: false,
+            timestamp: Date.now(),
+          };
+          const finalRanking = calculateFinalRanking(room.players as Record<string, Player>);
+          room.gameState.finalRanking = finalRanking;
+
+          // Persistir y notificar
+          await RoomService.createOrUpdateRoom(roomId, room);
+          RoomService.stopCallingCards(roomId);
+          io.to(roomId).emit("gameUpdated", room.gameState);
+          io.to(roomId).emit("roomUpdated", room);
+          socket.emit("claimWinResult", { success: true });
+        } catch (e) {
+          console.error("Error en claimWin:", e);
+          socket.emit("claimWinResult", { success: false, error: String(e) });
+        }
+      });
 
       // presencia explícita desde cliente para actualizar lastSeen/isOnline
       socket.on("presence", async ({ roomId, playerName }: { roomId: string; playerName: string }) => {
