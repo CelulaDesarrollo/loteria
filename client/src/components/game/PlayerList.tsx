@@ -16,15 +16,28 @@ interface PlayerListProps {
   players: Record<string, PlayerState>;
   currentPlayerName: string;
   hostName?: string;
+  roomId?: string;
 }
 
 export function PlayerList({
   players,
   currentPlayerName,
   hostName,
+  roomId,
 }: PlayerListProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const playerArray = Object.values(players);
+
+  // Mapear ID de sala a nombre legible
+  const getRoomLabel = (id: string) => {
+    const mapping: Record<string, string> = {
+      sala_1: "Sala 1",
+      sala_2: "Sala 2",
+      sala_3: "Sala 3",
+      sala_4: "Sala 4",
+    };
+    return mapping[id] || id;
+  };
 
   return (
     // root: más compacto en móvil (menos padding/gap), mantiene estilo en md+
@@ -41,6 +54,11 @@ export function PlayerList({
             className="flex items-center justify-center gap-3 font-semibold"
             style={{ fontSize: "clamp(10px, 5vw, 14px)" }}
           >
+            {roomId && (
+              <span className="text-primary font-bold">
+                {getRoomLabel(roomId)}
+              </span>
+            )}
             <Users className="w-5 h-5 shrink-0 hidden md:inline" />
             <span className="whitespace-nowrap">
               Jugadores ({playerArray.filter((p) => p.isOnline).length})

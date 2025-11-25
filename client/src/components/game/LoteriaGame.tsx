@@ -41,7 +41,7 @@ const GAME_MODE_LABELS: Record<string, string> = {
 export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: LoteriaGameProps) {
   const [ranking, setRanking] = useState<{ name: string; seleccionadas: number }[]>([]);
   const [roomData, setRoomData] = useState<any>(initialRoomData);
-  
+
   // selectedMode debe declararse antes de usarlo (evita ReferenceError)
   // Inicializar desde initialRoomData si ya viene del servidor
   const [selectedMode, setSelectedMode] = useState<string>(() => {
@@ -53,7 +53,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
   });
   // Evita recomputar ranking después de limpiar markedIndices
   const lastWinnerRef = useRef<string | null>(null);
-  
+
   const gameState = roomData?.gameState ?? null;
   const allPlayers = roomData?.players ?? {};
   const rawPlayer = allPlayers[playerName];
@@ -62,7 +62,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     : undefined;
   // isHost ahora es un estado reactivo que se actualiza cuando cambia gameState.host
   const [isHostState, setIsHostState] = useState(false);
-  
+
   // Efecto para actualizar isHostState cuando cambia el host en gameState
   useEffect(() => {
     const newIsHost = gameState?.host === playerName;
@@ -118,12 +118,22 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       });
     });
 
+    // Escuchar respuesta de claimWin
+    const unsubscribeClaimWin = gameSocket.onClaimWinResult((result) => {
+      if (result.success) {
+        console.log("✅ Victoria validada por servidor");
+      } else {
+        console.warn("❌ Victoria rechazada:", result.error || result.alreadyWinner);
+      }
+    });
+
     // Limpieza al desmontar
     return () => {
       unsubscribeUpdate();
       unsubscribeRoom();
       unsubscribeJoin();
       unsubscribeLeft();
+      +      unsubscribeClaimWin();
     };
   }, []);
 
@@ -147,10 +157,10 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       setSelectedMode(modeFromServer);
     }
   }, [roomData?.gameState?.gameMode, selectedMode]);
-  
+
   // Determina el modo efectivo (primero servidor, si no usar selección local)
   const effectiveMode = roomData?.gameState?.gameMode || selectedMode;
-  
+
   // Marcar carta
   const handleCardClick = async (card: CardType, index: number) => {
     if (!player || !gameState?.isGameActive) return;
@@ -211,7 +221,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
         const firstForCheck = firstCard || (modeForCheck !== "full" ? { row, col } : null);
 
         // Enviar datos para que el servidor valide la jugada
-        await gameSocket.emit?.(
+        const claimResult = await gameSocket.emit(
           "claimWin",
           roomId,
           playerName,
@@ -222,6 +232,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
             firstCard: firstForCheck,
           }
         );
+        console.log("claimWin response:", claimResult);
       } catch (e) {
         console.warn("claimWin error:", e);
       }
@@ -698,47 +709,47 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
           {/* Tablero: quitar margen negativo, dejar el grid gap-y controlar el espaciado */}
           {/* asegurar que no haya margen superior que rompa el gap en móvil */}
           <div className="flex justify-center col-span-1 md:col-span-4 gap-3 mt-0 md:mt-0">
-             <div className="relative">
-               {/* Contenedor responsivo del tablero.
+            <div className="relative">
+              {/* Contenedor responsivo del tablero.
                    En pantallas md+ añadimos padding-bottom para reservar espacio
                    y que el botón pueda situarse "debajo" del tablero dentro del recuadro. */}
-               <div className="md:pb-12">
-                 <div className="mx-auto w-[clamp(300px,92vw,560px)] md:w-[clamp(220px,28vw,400px)] aspect-[265/380]">
-                   <GameBoard
-                     board={player.board}
-                     onCardClick={handleCardClick}
-                     markedIndices={player.markedIndices}
-                     calledCardIds={Array.isArray(gameState.calledCardIds) ? gameState.calledCardIds : []}
-                     isAllowed={isAllowed}
-                   />
-                 </div>
-               </div>
+              <div className="md:pb-12">
+                <div className="mx-auto w-[clamp(300px,92vw,560px)] md:w-[clamp(220px,28vw,400px)] aspect-[265/380]">
+                  <GameBoard
+                    board={player.board}
+                    onCardClick={handleCardClick}
+                    markedIndices={player.markedIndices}
+                    calledCardIds={Array.isArray(gameState.calledCardIds) ? gameState.calledCardIds : []}
+                    isAllowed={isAllowed}
+                  />
+                </div>
+              </div>
 
-               {/* Botón dentro del recuadro: en md+ se posiciona absolute bottom-right (dentro del padding que añadimos) */}
-               <div className="hidden md:flex absolute right-0 bottom-[-2px] z-20">
-                 <Button
-                   size="icon"
-                   className="bg-[#D4165C] text-white hover:bg-[#AA124A] border-2 border-primary"
-                   onClick={() => setShowExitModal(true)}
-                   aria-label="Salir de la sala"
-                 >
-                   <LogOut />
-                 </Button>
-               </div>
+              {/* Botón dentro del recuadro: en md+ se posiciona absolute bottom-right (dentro del padding que añadimos) */}
+              <div className="hidden md:flex absolute right-0 bottom-[-2px] z-20">
+                <Button
+                  size="icon"
+                  className="bg-[#D4165C] text-white hover:bg-[#AA124A] border-2 border-primary"
+                  onClick={() => setShowExitModal(true)}
+                  aria-label="Salir de la sala"
+                >
+                  <LogOut />
+                </Button>
+              </div>
 
-               {/* Botón debajo del tablero en móvil (1 columna) */}
-               <div className="mt-3 md:hidden flex justify-center">
-                 <Button
-                   size="sm"
-                   className="bg-[#D4165C] text-white hover:bg-[#AA124A] border-2 border-primary"
-                   onClick={() => setShowExitModal(true)}
-                 >
-                   <LogOut />
+              {/* Botón debajo del tablero en móvil (1 columna) */}
+              <div className="mt-3 md:hidden flex justify-center">
+                <Button
+                  size="sm"
+                  className="bg-[#D4165C] text-white hover:bg-[#AA124A] border-2 border-primary"
+                  onClick={() => setShowExitModal(true)}
+                >
+                  <LogOut />
 
-                 </Button>
-               </div>
-             </div>
-           </div>
+                </Button>
+              </div>
+            </div>
+          </div>
 
           {/* Deja modales y botones flotantes fuera del wrapper */}
           {/* Modal que indica que se debe seleccionar modo */}

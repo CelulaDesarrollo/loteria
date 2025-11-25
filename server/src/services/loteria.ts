@@ -123,16 +123,19 @@ export function createDeck(): Card[] {
  * @returns True if a winning pattern is met, false otherwise.
  */
 export function checkWin(
-  markedIndices: number[],
   board: Card[],
-  calledCardIds: number[],
-  gameMode: string = "full"
+  markedIndices: number[],
+  gameMode: string = "full",
+  firstCard: { row: number; col: number } | null = null,
+  calledCardIds?: number[]
 ): boolean {
-  // Validar que las cartas marcadas estén en las llamadas
-  const validMarks = markedIndices.every(
-    (idx) => calledCardIds.includes(board[idx].id)
-  );
-  if (!validMarks) return false;
+  // Si vienen calledCardIds, validar que las marcas estén en las llamadas
+  if (Array.isArray(calledCardIds)) {
+    const validMarks = markedIndices.every(
+      (idx) => calledCardIds.includes(board[idx].id)
+    );
+    if (!validMarks) return false;
+  }
 
   switch (gameMode) {
     case "full":

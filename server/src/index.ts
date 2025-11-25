@@ -250,16 +250,16 @@ async function startServer() {
 
           const mode = payload?.gameMode || room.gameState?.gameMode || "full";
           const markedIndices = Array.isArray(payload?.markedIndices) ? payload.markedIndices : (player.markedIndices || []);
-          // Player type en el servidor puede no declarar `board`; forzamos el acceso de forma segura
           const board = payload?.board ?? (player as any)?.board;
           if (!board) {
             socket.emit("claimWinResult", { success: false, error: "no_board" });
             return;
           }
           const firstCard = payload?.firstCard || null;
+          const calledCardIds = Array.isArray(room.gameState?.calledCardIds) ? room.gameState.calledCardIds : [];
 
-          // Validar con lógica centralizada
-          const validWin = checkWin(board, markedIndices, mode, firstCard);
+          // Validar con lógica centralizada (pasando calledCardIds)
+          const validWin = checkWin(board, markedIndices, mode, firstCard, calledCardIds);
           if (!validWin) {
             socket.emit("claimWinResult", { success: false });
             return;
@@ -284,6 +284,7 @@ async function startServer() {
           // Persistir y notificar
           await RoomService.createOrUpdateRoom(roomId, room);
           RoomService.stopCallingCards(roomId);
+          console.log(`🏆 ¡${playerName} ganó en ${roomId}!`);
           io.to(roomId).emit("gameUpdated", room.gameState);
           io.to(roomId).emit("roomUpdated", room);
           socket.emit("claimWinResult", { success: true });

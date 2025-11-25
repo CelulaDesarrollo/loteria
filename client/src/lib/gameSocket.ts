@@ -164,15 +164,27 @@ class GameSocket {
       });
     }
 
-    // Wrapper simple para emitir; espera conexión y resuelve inmediatamente después de emitir.
-    async emit(event: string, ...args: any[]) {
+    // Wrapper mejorado para emitir con callback/respuesta del servidor
+    async emit(event: string, ...args: any[]): Promise<any> {
         await this.ensureConnection();
         try {
-            this.socket.emit(event, ...args);
+            return new Promise<any>((resolve, reject) => {
+                // Agregar callback al final de los argumentos
+                this.socket.emit(event, ...args, (error?: any, response?: any) => {
+                    if (error) reject(error);
+                    else resolve(response);
+                });
+            });
         } catch (e) {
             console.error("[gameSocket] emit error", e);
             throw e;
         }
+    }
+
+    // Listener para respuesta de claimWin
+    onClaimWinResult(callback: (result: { success: boolean; error?: string; alreadyWinner?: boolean }) => void) {
+        this.socket.on("claimWinResult", callback);
+        return () => this.socket.off("claimWinResult", callback);
     }
 }
 
