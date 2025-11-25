@@ -140,6 +140,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
   // Evitar warning aria-hidden: quitar foco antes de abrir modal de ganador
   useEffect(() => {
     if (roomData?.gameState?.winner) {
+      console.log("🏆 GANADOR DETECTADO EN CLIENTE:", roomData.gameState.winner);
       try {
         if (document && document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
@@ -220,16 +221,17 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
         const modeForCheck = effectiveMode || "full";
         const firstForCheck = firstCard || (modeForCheck !== "full" ? { row, col } : null);
 
-        console.log("📤 Intentando emitir claimWin:", {
+        console.log("📤 EMITIENDO claimWin:", {
           roomId,
           playerName,
-          board: player.board.length,
+          boardLength: player.board.length,
           markedIndices: updatedIndices,
+          markedCount: updatedIndices.length,
           gameMode: modeForCheck,
-          calledCardIds: gameState.calledCardIds?.length || 0,
+          firstCard: firstForCheck,
+          calledCardIds: gameState.calledCardIds,
         });
 
-        // Enviar datos para que el servidor valide la jugada
         const claimResult = await gameSocket.emit(
           "claimWin",
           roomId,
@@ -241,7 +243,10 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
             firstCard: firstForCheck,
           }
         );
-        console.log("✅ Servidor respondió claimWin:", claimResult);
+        console.log("✅ RESPUESTA claimWin:", claimResult);
+        if (claimResult?.success) {
+          console.log("🎉 VICTORIA CONFIRMADA POR SERVIDOR");
+        }
       } catch (e) {
         console.error("❌ Error emitiendo claimWin:", e);
       }

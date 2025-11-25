@@ -119,7 +119,11 @@ export function createDeck(): Card[] {
 
 /**
  * Checks if a set of marked indices on a board constitutes a win.
+ * @param board The player's board (array of 16 Cards).
  * @param markedIndices The indices of the marked cards (0-15).
+ * @param gameMode The game mode ("full", "horizontal", "vertical", etc).
+ * @param firstCard The first card selected (null or {row, col}).
+ * @param calledCardIds Optional array of called card IDs for validation.
  * @returns True if a winning pattern is met, false otherwise.
  */
 export function checkWin(
@@ -127,14 +131,28 @@ export function checkWin(
   markedIndices: number[],
   gameMode: string = "full",
   firstCard: { row: number; col: number } | null = null,
-  calledCardIds?: number[]
+  calledCardIds: number[] = []
 ): boolean {
+  // Validación básica
+  if (!Array.isArray(board) || !Array.isArray(markedIndices)) {
+    console.warn("checkWin: board o markedIndices no son arrays", { board, markedIndices });
+    return false;
+  }
+
   // Si vienen calledCardIds, validar que las marcas estén en las llamadas
-  if (Array.isArray(calledCardIds)) {
-    const validMarks = markedIndices.every(
-      (idx) => calledCardIds.includes(board[idx].id)
-    );
-    if (!validMarks) return false;
+  if (Array.isArray(calledCardIds) && calledCardIds.length > 0) {
+    const validMarks = markedIndices.every((idx) => {
+      const card = board[idx];
+      if (!card) {
+        console.warn(`checkWin: index ${idx} no existe en board`);
+        return false;
+      }
+      return calledCardIds.includes(card.id);
+    });
+    if (!validMarks) {
+      console.log("checkWin: algunas marcas no están en cartas llamadas");
+      return false;
+    }
   }
 
   switch (gameMode) {
@@ -143,38 +161,49 @@ export function checkWin(
 
     case "horizontal": {
       const rowPatterns = WINNING_PATTERNS.slice(0, 4);
-      return rowPatterns.some((pattern) =>
+      const win = rowPatterns.some((pattern) =>
         pattern.every((idx) => markedIndices.includes(idx))
       );
+      console.log(`checkWin(horizontal): patterns=${rowPatterns.length}, win=${win}`);
+      return win;
     }
 
     case "vertical": {
       const colPatterns = WINNING_PATTERNS.slice(4, 8);
-      return colPatterns.some((pattern) =>
+      const win = colPatterns.some((pattern) =>
         pattern.every((idx) => markedIndices.includes(idx))
       );
+      console.log(`checkWin(vertical): patterns=${colPatterns.length}, win=${win}`);
+      return win;
     }
 
     case "diagonal": {
       const diagPatterns = WINNING_PATTERNS.slice(8, 10);
-      return diagPatterns.some((pattern) =>
+      const win = diagPatterns.some((pattern) =>
         pattern.every((idx) => markedIndices.includes(idx))
       );
+      console.log(`checkWin(diagonal): patterns=${diagPatterns.length}, win=${win}`);
+      return win;
     }
 
     case "corners": {
       const corners = WINNING_PATTERNS[10];
-      return corners.every((idx) => markedIndices.includes(idx));
+      const win = corners.every((idx) => markedIndices.includes(idx));
+      console.log(`checkWin(corners): pattern=${corners}, win=${win}`);
+      return win;
     }
 
     case "square": {
       const squarePatterns = WINNING_PATTERNS.slice(11);
-      return squarePatterns.some((pattern) =>
+      const win = squarePatterns.some((pattern) =>
         pattern.every((idx) => markedIndices.includes(idx))
       );
+      console.log(`checkWin(square): patterns=${squarePatterns.length}, win=${win}`);
+      return win;
     }
 
     default:
+      console.warn(`checkWin: modo desconocido "${gameMode}"`);
       return false;
   }
 }
