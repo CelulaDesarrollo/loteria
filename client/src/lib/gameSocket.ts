@@ -169,11 +169,20 @@ class GameSocket {
         await this.ensureConnection();
         try {
             return new Promise<any>((resolve, reject) => {
-                // Agregar callback al final de los argumentos
-                this.socket.emit(event, ...args, (error?: any, response?: any) => {
-                    if (error) reject(error);
-                    else resolve(response);
-                });
+                try {
+                    // socket.io ack puede devolver cualquier número de args; normalmente 1 (response)
+                    this.socket.emit(event, ...args, (...cbArgs: any[]) => {
+                        // Si no hay argumentos, resolver como undefined
+                        if (!cbArgs || cbArgs.length === 0) return resolve(undefined);
+                        // Si el servidor usó convención error-first y pasa (err, res)
+                        if (cbArgs.length === 2 && cbArgs[0]) return reject(cbArgs[0]);
+                        // Devolver el primer argumento como respuesta
+                        return resolve(cbArgs[0]);
+                    });
+                } catch (emitErr) {
+                    console.error("[gameSocket] emit internal error", emitErr);
+                    reject(emitErr);
+                }
             });
         } catch (e) {
             console.error("[gameSocket] emit error", e);

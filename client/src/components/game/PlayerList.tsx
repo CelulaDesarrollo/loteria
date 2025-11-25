@@ -54,11 +54,11 @@ export function PlayerList({
             className="flex items-center justify-center gap-3 font-semibold"
             style={{ fontSize: "clamp(10px, 5vw, 14px)" }}
           >
-            {roomId && (
-              <span className="text-primary font-bold">
-                {getRoomLabel(roomId)}
-              </span>
-            )}
+            <div className="text-xs text-muted-foreground">
+              {roomId && (
+                <span className="font-semibold">{getRoomLabel(roomId)}</span>
+              )}
+            </div>
             <Users className="w-5 h-5 shrink-0 hidden md:inline" />
             <span className="whitespace-nowrap">
               Jugadores ({playerArray.filter((p) => p.isOnline).length})

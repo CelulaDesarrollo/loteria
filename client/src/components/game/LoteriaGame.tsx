@@ -133,7 +133,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       unsubscribeRoom();
       unsubscribeJoin();
       unsubscribeLeft();
-      +      unsubscribeClaimWin();
+      unsubscribeClaimWin();
     };
   }, []);
 
@@ -220,13 +220,12 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
         const modeForCheck = effectiveMode || "full";
         const firstForCheck = firstCard || (modeForCheck !== "full" ? { row, col } : null);
 
-        console.log("📤 Emitiendo claimWin:", {
+        console.log("📤 Intentando emitir claimWin:", {
           roomId,
           playerName,
           board: player.board.length,
           markedIndices: updatedIndices,
           gameMode: modeForCheck,
-          firstCard: firstForCheck,
           calledCardIds: gameState.calledCardIds?.length || 0,
         });
 
@@ -242,9 +241,9 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
             firstCard: firstForCheck,
           }
         );
-        console.log("✅ claimWin response:", claimResult);
+        console.log("✅ Servidor respondió claimWin:", claimResult);
       } catch (e) {
-        console.error("❌ claimWin error:", e);
+        console.error("❌ Error emitiendo claimWin:", e);
       }
     } catch (err) {
       console.error("Error al actualizar marcado:", err);

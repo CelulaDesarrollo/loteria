@@ -4,7 +4,7 @@ import fastifySocketIO from "fastify-socket.io";
 import { Server } from "socket.io";
 import { RoomService } from "./services/roomService";
 import { Player } from "./types/game";
-import { checkWin } from "./services/loteria"; // <-- añadir import
+import { checkWin } from "./services/loteria"; 
 import fastifyStatic from "@fastify/static";
 import path from "path";
 import { ServerResponse } from "http";
@@ -240,20 +240,29 @@ async function startServer() {
       socket.data.playerName = null;
 
       // Cliente solicita que el servidor valide una victoria
-      socket.on("claimWin", async (roomId: string, playerName: string, payload: any) => {
-        console.log("📥 claimWin recibido:", { roomId, playerName, payload });
+      socket.on("claimWin", async (roomId: string, playerName: string, payload: any, callback: Function) => {
+        console.log("📥 claimWin recibido:", { roomId, playerName });
         try {
-          if (!roomId || !playerName) return;
+          if (!roomId || !playerName) {
+            if (typeof callback === 'function') callback({ success: false, error: "invalid_params" });
+            return;
+          }
           const room = await RoomService.getRoom(roomId);
-          if (!room || !room.players) return;
+          if (!room || !room.players) {
+            if (typeof callback === 'function') callback({ success: false, error: "room_not_found" });
+            return;
+          }
           const player = room.players[playerName];
-          if (!player) return;
+          if (!player) {
+            if (typeof callback === 'function') callback({ success: false, error: "player_not_found" });
+            return;
+          }
 
           const mode = payload?.gameMode || room.gameState?.gameMode || "full";
           const markedIndices = Array.isArray(payload?.markedIndices) ? payload.markedIndices : (player.markedIndices || []);
           const board = payload?.board ?? (player as any)?.board;
           if (!board) {
-            socket.emit("claimWinResult", { success: false, error: "no_board" });
+            if (typeof callback === 'function') callback({ success: false, error: "no_board" });
             return;
           }
           const firstCard = payload?.firstCard || null;
@@ -262,13 +271,15 @@ async function startServer() {
           // Validar con lógica centralizada (pasando calledCardIds)
           const validWin = checkWin(board, markedIndices, mode, firstCard, calledCardIds);
           if (!validWin) {
-            socket.emit("claimWinResult", { success: false });
+            console.log("❌ checkWin devolvió false para", { playerName, mode, markedIndices: markedIndices.length });
+            if (typeof callback === 'function') callback({ success: false, error: "invalid_pattern" });
             return;
           }
 
           // Si ya existe ganador evitar duplicados
           if (room.gameState?.winner) {
-            socket.emit("claimWinResult", { success: false, alreadyWinner: true });
+            console.log("⚠️ Ya hay ganador:", room.gameState.winner);
+            if (typeof callback === 'function') callback({ success: false, alreadyWinner: true });
             return;
           }
 
@@ -285,13 +296,36 @@ async function startServer() {
           // Persistir y notificar
           await RoomService.createOrUpdateRoom(roomId, room);
           RoomService.stopCallingCards(roomId);
-          console.log(`🏆 ¡${playerName} ganó en ${roomId}!`);
+          console.log(`🏆 ¡${playerName} ganó en ${roomId}! Modo: ${mode}`);
           io.to(roomId).emit("gameUpdated", room.gameState);
           io.to(roomId).emit("roomUpdated", room);
-          socket.emit("claimWinResult", { success: true });
+          
+          // ✅ Responder al cliente con callback (acknowledge)
+          if (typeof callback === 'function') {
+            callback({ success: true });
+          }
+
+          // ... después de procesar la victoria y antes de callback/return ...
+          const result = { success: true };
+
+          // Notificar por ack si existe callback
+          if (typeof callback === 'function') {
+            callback(result);
+          }
+          // Emitir evento para clientes que no usen ack (compatibilidad)
+          try {
+            socket.emit("claimWinResult", result);
+          } catch (e) {
+            console.warn("claimWin: no se pudo emitir claimWinResult por socket.emit", e);
+          }
+
+          // Si usas io.to(roomId) para informar a todos también puedes:
+          io.to(roomId).emit("claimWinResult", { success: true, playerName });
         } catch (e) {
-          console.error("Error en claimWin:", e);
-          socket.emit("claimWinResult", { success: false, error: String(e) });
+          console.error("❌ Error en claimWin:", e);
+          if (typeof callback === 'function') {
+            callback({ success: false, error: String(e) });
+          }
         }
       });
 
