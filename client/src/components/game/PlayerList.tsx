@@ -29,7 +29,8 @@ export function PlayerList({
   const playerArray = Object.values(players);
 
   // Mapear ID de sala a nombre legible
-  const getRoomLabel = (id: string) => {
+  const getRoomLabel = (id?: string) => {
+    if (!id) return "";
     const mapping: Record<string, string> = {
       sala_1: "Sala 1",
       sala_2: "Sala 2",
@@ -40,10 +41,19 @@ export function PlayerList({
   };
 
   return (
-    // root: más compacto en móvil (menos padding/gap), mantiene estilo en md+
     <Card>
-      <CardHeader>
-        {/* Header simplified: removed room display */}
+      <CardHeader className="pb-2">
+        {/* Etiqueta de sala ARRIBA */}
+        {roomId && (
+          <div
+            className="text-white font-bold mb-2 text-center"
+            style={{ fontSize: "clamp(10px, 2vw, 14px)" }}
+          >
+            {getRoomLabel(roomId)}
+          </div>
+        )}
+
+        {/* Título con jugadores y botón */}
         <CardTitle
           className="
             flex flex-wrap items-center justify-center text-center gap-3
@@ -51,15 +61,10 @@ export function PlayerList({
           "
         >
           <div
-            className="flex items-center justify-center gap-3 font-semibold"
-            style={{ fontSize: "clamp(10px, 5vw, 14px)" }}
+            className="flex items-center justify-center gap-2 font-semibold text-white"
+            style={{ fontSize: "clamp(10px, 2vw, 14px)" }}
           >
-            <div className="text-xs text-muted-foreground">
-              {roomId && (
-                <span className="font-semibold">{getRoomLabel(roomId)}</span>
-              )}
-            </div>
-            <Users className="w-5 h-5 shrink-0 hidden md:inline" />
+            <Users className="w-4 h-4 shrink-0 hidden md:inline" />
             <span className="whitespace-nowrap">
               Jugadores ({playerArray.filter((p) => p.isOnline).length})
             </span>
@@ -90,11 +95,11 @@ export function PlayerList({
           <div
             className="overflow-y-auto custom-scrollbar hide-scrollbar"
             style={{
-              maxHeight: "6.5rem", // Ajustar este valor para controlar cuántos jugadores se ven
+              maxHeight: "6.5rem",
               paddingRight: "0.75rem",
               WebkitOverflowScrolling: "touch",
               scrollbarGutter: "stable",
-              display: isExpanded ? "block" : "none", // oculta por completo cuando está contraído
+              display: isExpanded ? "block" : "none",
             }}
           >
             <ul className="space-y-3 py-2">
@@ -116,16 +121,10 @@ export function PlayerList({
                     </Avatar>
                     <span
                       className={cn(
-                        "font-medium text-[14px]",
+                        "font-medium text-sm",
                         player.name === currentPlayerName && "text-primary"
                       )}
                     >
-                      {/* 
-                      {player.name}
-                      {player.name === currentPlayerName && " (Tú)"}
-
-                      */}
-
                       <span className="font-medium">
                         <span className="text-[hsl(var(--foreground))]">
                           {player.name}
