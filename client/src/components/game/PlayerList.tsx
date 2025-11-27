@@ -47,7 +47,7 @@ export function PlayerList({
         {roomId && (
           <div
             className="text-white font-bold mb-2 text-center"
-            style={{ fontSize: "clamp(10px, 2vw, 14px)" }}
+            style={{ fontSize: "clamp(14px, 2vw, 14px)" }}
           >
             {getRoomLabel(roomId)}
           </div>
@@ -62,7 +62,7 @@ export function PlayerList({
         >
           <div
             className="flex items-center justify-center gap-2 font-semibold text-white"
-            style={{ fontSize: "clamp(10px, 2vw, 14px)" }}
+            style={{ fontSize: "clamp(14px, 2vw, 14px)" }}
           >
             <Users className="w-4 h-4 shrink-0 hidden md:inline" />
             <span className="whitespace-nowrap">
