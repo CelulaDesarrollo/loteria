@@ -194,11 +194,11 @@ export function checkWin(
     }
 
     case "square": {
-      const squarePatterns = WINNING_PATTERNS.slice(11);
+      const squarePatterns = WINNING_PATTERNS.slice(11); // [5, 6, 9, 10]
       const win = squarePatterns.some((pattern) =>
         pattern.every((idx) => markedIndices.includes(idx))
       );
-      console.log(`checkWin(square): patterns=${squarePatterns.length}, win=${win}`);
+      console.log(`checkWin(square): pattern=${squarePatterns[0]}, win=${win}`);
       return win;
     }
 
