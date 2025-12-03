@@ -37,6 +37,7 @@ async function startServer() {
     "http://148.226.24.22",
     "http://loteria-infosegura.uv.mx",
     "http://loteriainfosegura.uv.mx",
+    "https://loteriainfosegura.uv.mx",
   ];
 
   const allowedOrigins = new Set<string>([PROD_CLIENT, DEV_CLIENT, ADMIN_CLIENT, ...EXTRA_DEV]);
