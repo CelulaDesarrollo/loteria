@@ -86,7 +86,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
   const [showIdleModal, setShowIdleModal] = useState(false);
 
   // Cantadito
-  const [cantaditoActivo, setCantaditoActivo] = useState(false);
+  const [cantaditoActivo, setCantaditoActivo] = useState(true);
 
   const [showModeModal, setShowModeModal] = useState(false); // <-- añadido
   const [showExitModal, setShowExitModal] = useState(false);
