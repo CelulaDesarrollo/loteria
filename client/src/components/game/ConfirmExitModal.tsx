@@ -51,7 +51,7 @@ export function ConfirmExitModal({ open, onClose, onConfirm }: ConfirmExitModalP
             <AlertDialogCancel asChild>
               <button
                 onClick={onClose}
-                className="w-full sm:w-[48%] px-3 py-2 rounded-md bg-gray-100 text-gray-800"
+                className="w-full sm:w-[48%] px-3 py-2 rounded-md bg-[#1E7374] text-white"
               >
                 Cancelar
               </button>
