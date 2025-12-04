@@ -5,7 +5,7 @@ interface DBRoom {
   data: string;
 }
 const cardIntervals: Map<string, any> = new Map();
-const CALL_INTERVAL = 3500; // 3.5 segundos entre cartas
+const CALL_INTERVAL = 4500; // 4.5 segundos entre cartas
 const MAX_PLAYERS = 100; // ajustar según necesidad
 const MAX_PLAYERS_PER_ROOM = 25; // Límite de 25 jugadores por sala
 
