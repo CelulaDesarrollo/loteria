@@ -92,6 +92,9 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
   const [showExitModal, setShowExitModal] = useState(false);
   const [gameStartCountdown, setGameStartCountdown] = useState<number | null>(null);
 
+  // Bloquear la aparición de cartas durante la cuenta regresiva/modal
+  const [allowShowCalledCard, setAllowShowCalledCard] = useState(true);
+
   // Suscribirse a actualizaciones
   useEffect(() => {
     const unsubscribeUpdate = gameSocket.onGameUpdate((newState) => {
@@ -430,10 +433,14 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
   const calledCards = Array.isArray(gameState.calledCardIds)
     ? gameState.calledCardIds.map(id => CARDS.find(c => c.id === id)).filter(Boolean) as CardType[]
     : [];
-  const currentCard = calledCards.length > 0 ? calledCards[calledCards.length - 1] : null;
+
+  // uniqueHistory sigue siendo la historia deduplicada, pero solo mostramos historia/carta si allowShowCalledCard === true
   const uniqueHistory = calledCards.filter(
     (card, index, self) => self.findIndex(c => c.id === card.id) === index
   );
+
+  const visibleHistory = allowShowCalledCard ? uniqueHistory.slice(-3) : [];
+  const currentCard = allowShowCalledCard && visibleHistory.length > 0 ? visibleHistory[visibleHistory.length - 1] : null;
   /*
   // Efecto para cantar la carta con voz tipo jaws
   useEffect(() => {
@@ -505,6 +512,31 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     const restriction = getRestriction(mode || "full", firstCard);
     return restriction(card);
   };
+
+
+  // Controla cuándo se permiten mostrar las cartas llamadas en UI
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    if (gameStartCountdown !== null) {
+      // Durante la cuenta regresiva ocultamos las cartas
+      setAllowShowCalledCard(false);
+
+      // Si llegó a 0 (¡A JUGAR!), esperar 1s y permitir que la UI muestre la primera carta
+      if (gameStartCountdown === 0) {
+        timer = setTimeout(() => {
+          setAllowShowCalledCard(true);
+        }, 1000); // 1000ms = 1s (ajusta si quieres otro tiempo)
+      }
+    } else {
+      // Si countdown es null (ya terminó), permitir mostrar cartas
+      setAllowShowCalledCard(true);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [gameStartCountdown]);
 
 
   return (
@@ -673,7 +705,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
               {/* HISTORIAL (solo 3 cartas recientes) */}
               <DealerDisplay
                 currentCard={null}
-                history={uniqueHistory.slice(-3)} // 3 últimas cartas
+                history={visibleHistory} // ahora controlado por allowShowCalledCard
                 showCurrentCard={false}
                 showHistory={true}
               />
