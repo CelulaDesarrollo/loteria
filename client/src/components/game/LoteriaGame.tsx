@@ -20,6 +20,7 @@ import { getRestriction } from "@/lib/loteria";
 import { cantarCarta, cantarCartaConAudio } from "@/lib/cantadito";
 import { ModeRequiredModal } from "./ModeRequiredModal"; // <-- añadido
 import { ConfirmExitModal } from "./ConfirmExitModal";
+import { GameStartCountdownModal } from "./GameStartCountdownModal";
 
 import { ResponsiveScale } from "@/components/ResponsiveScale";
 
@@ -89,6 +90,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
 
   const [showModeModal, setShowModeModal] = useState(false); // <-- añadido
   const [showExitModal, setShowExitModal] = useState(false);
+  const [gameStartCountdown, setGameStartCountdown] = useState<number | null>(null);
 
   // Suscribirse a actualizaciones
   useEffect(() => {
@@ -118,12 +120,20 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       });
     });
 
-    // Escuchar respuesta de claimWin
     const unsubscribeClaimWin = gameSocket.onClaimWinResult((result) => {
       if (result.success) {
         console.log("✅ Victoria validada por servidor");
       } else {
         console.warn("❌ Victoria rechazada:", result.error || result.alreadyWinner);
+      }
+    });
+
+    // ✅ NUEVO: Escuchar countdown de inicio
+    const unsubscribeCountdown = gameSocket.onGameStartCountdown?.((countdown: number) => {
+      console.log("⏱️ Countdown recibido:", countdown);
+      setGameStartCountdown(countdown);
+      if (countdown === 0) {
+        setTimeout(() => setGameStartCountdown(null), 1500); // Mantener "¡YA!" 1.5s
       }
     });
 
@@ -134,6 +144,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       unsubscribeJoin();
       unsubscribeLeft();
       unsubscribeClaimWin();
+      unsubscribeCountdown?.();
     };
   }, []);
 
@@ -284,34 +295,13 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     }
 
     try {
-      // 1️⃣ Emitir al servidor para que inicie el bucle de cartas
-      await gameSocket.emit("startGameLoop", roomId, selectedMode);
+      console.log("🎮 Iniciando juego en modo:", selectedMode);
 
-      // 2️⃣ Limpiar markedIndices para el nuevo juego
-      const updatedPlayers = { ...roomData.players };
-      Object.keys(updatedPlayers).forEach(pName => {
-        updatedPlayers[pName].markedIndices = [];
-      });
+      // ✅ NUEVO: Emitir countdown antes de iniciar
+      await gameSocket.emit("startGameCountdown", roomId, selectedMode);
 
-      // 3️⃣ Optimistic update (solo el modo y el estado activo)
-      setRoomData((prev: any) => ({
-        ...(prev || {}),
-        players: updatedPlayers,
-        gameState: {
-          ...(prev?.gameState || {}),
-          isGameActive: true,
-          winner: null,
-          gameMode: selectedMode,
-          timestamp: Date.now(),
-          finalRanking: null,
-        }
-      }));
-
-      setRanking([]);
-      setFirstCard(null);
     } catch (error) {
-      console.error("Error al iniciar juego:", error);
-      alert("Error al iniciar el juego. Intenta de nuevo.");
+      console.error("Error iniciando juego:", error);
     }
   };
 
@@ -800,6 +790,11 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
               // confirmar salida: navegar a home (puedes cambiar por logout real si hay lógica)
               window.location.href = "/";
             }}
+          />
+
+          <GameStartCountdownModal
+            open={gameStartCountdown !== null}
+            countdownValue={gameStartCountdown}
           />
 
         </div>

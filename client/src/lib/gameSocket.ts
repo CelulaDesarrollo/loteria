@@ -76,6 +76,11 @@ class GameSocket {
         return () => this.socket.off("playerLeft", cb);
     }
 
+    onGameStartCountdown(callback: (countdown: number) => void) {
+        this.socket.on("gameStartCountdown", callback);
+        return () => this.socket.off("gameStartCountdown", callback);
+    }
+
     async ensureConnection(timeoutMs = 5000): Promise<void> {
         if (this.socket.connected) return;
         if (this.connecting) {

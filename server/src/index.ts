@@ -624,6 +624,58 @@ async function startServer() {
           socket.emit("error", { message: "Error al detener juego" });
         }
       });
+
+      socket.on("startGameCountdown", async (roomId: string, gameMode: string) => {
+        console.log("⏱️ startGameCountdown recibido:", { roomId, gameMode });
+        try {
+          if (!roomId || !gameMode) return;
+
+          const room = await RoomService.getRoom(roomId);
+          if (!room) return;
+
+          // Iniciar countdown: 3, 2, 1, 0 (YA)
+          const countdownSequence = [3, 2, 1, 0];
+          const delayMs = 1000; // 1 segundo entre cada número
+
+          for (let i = 0; i < countdownSequence.length; i++) {
+            const countdown = countdownSequence[i];
+            
+            // Esperar 1 segundo (excepto en el primero que va inmediato)
+            if (i > 0) {
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+
+            // Emitir countdown a todos en la sala
+            console.log(`⏱️ Emitiendo countdown ${countdown} para ${roomId}`);
+            io.to(roomId).emit("gameStartCountdown", countdown);
+          }
+
+          // ✅ Después del countdown (3, 2, 1, 0), iniciar el juego
+          await new Promise(resolve => setTimeout(resolve, 500)); // pequeño delay tras "¡YA!"
+          
+          console.log(`🎮 Iniciando juego en ${roomId} modo ${gameMode}`);
+          room.gameState = {
+            ...(room.gameState || {}),
+            gameMode,
+            isGameActive: true,
+            winner: null,
+            calledCardIds: [],
+            deck: shuffleDeck(),
+            timestamp: Date.now(),
+          };
+
+          await RoomService.createOrUpdateRoom(roomId, room);
+          io.to(roomId).emit("gameUpdated", room.gameState);
+          io.to(roomId).emit("roomUpdated", room);
+
+          // Iniciar bucle de llamadas de cartas
+          RoomService.startCallingCards(roomId, gameMode);
+
+        } catch (e) {
+          console.error("❌ Error en startGameCountdown:", e);
+          socket.emit("startGameCountdownError", { error: String(e) });
+        }
+      });
     });
 
     // (removed stray IIFE closure — fastify.ready callback ya está correctamente cerrado arriba)
@@ -644,4 +696,8 @@ startServer().catch((err) => {
   process.exit(1);
 });
 
+
+function shuffleDeck(): any[] {
+  throw new Error("Function not implemented.");
+}
 
