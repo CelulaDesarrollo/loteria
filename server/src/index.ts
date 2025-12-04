@@ -669,7 +669,7 @@ async function startServer() {
           io.to(roomId).emit("roomUpdated", room);
 
           // Iniciar bucle de llamadas de cartas
-          RoomService.startCallingCards(roomId, gameMode);
+          RoomService.startCallingCards(roomId, io);
 
         } catch (e) {
           console.error("❌ Error en startGameCountdown:", e);

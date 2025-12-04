@@ -39,13 +39,13 @@ export function GameStartCountdownModal({
                         flex items-center justify-center
                         rounded-full font-bold text-white
                         transition-all duration-300 ease-in-out
-                        ${isCountingDown ? "bg-primary/90" : ""}
-                        ${isYa ? "bg-accent/90" : ""}
+                        ${isCountingDown ? "bg-primary/80" : ""}
+                        ${isYa ? "bg-accent/80" : ""}
                     `}
                     style={{
                         width: "clamp(140px, 50vw, 320px)",
                         height: "clamp(140px, 50vw, 320px)",
-                        fontSize: isCountingDown ? "clamp(3.5rem, 13vw, 7rem)" : "clamp(1.8rem, 10vw, 4rem)",
+                        fontSize: isCountingDown ? "clamp(3.5rem, 13vw, 7rem)" : "clamp(3rem, 10vw, 4rem)",
                         lineHeight: "1.2",
                         textAlign: "center",
                         display: "flex",
