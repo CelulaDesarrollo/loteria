@@ -306,16 +306,12 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
   };
 
 
-  // Reiniciar juego (solo host)
+  // Reiniciar juego (solo host) - SIN cambiar tableros
   const resetGame = async () => {
     if (!isHost) return;
 
-    const updatedPlayers = { ...roomData.players };
-    Object.keys(updatedPlayers).forEach(pName => {
-      updatedPlayers[pName].board = generateBoard();
-      updatedPlayers[pName].markedIndices = [];
-    });
-
+    // ❌ NO tocar tableros ni markedIndices
+    // Solo reiniciar el estado del juego
     const newState = {
       host: playerName,
       isGameActive: false,
@@ -329,21 +325,13 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     // Optimistic update
     setRoomData((prev: any) => ({
       ...(prev || {}),
-      players: updatedPlayers,
       gameState: newState
     }));
 
+    // Notificar servidor
     await gameSocket.emit("updateRoom", roomId, {
-      players: updatedPlayers,
-      gameState: {
-        host: playerName,
-        isGameActive: false,
-        winner: null,
-        calledCardIds: [],
-        gameMode: null,
-        timestamp: Date.now(),
-        finalRanking: null,
-      }
+      gameState: newState
+      // ❌ NO incluir players aquí
     });
 
     setRanking([]);
@@ -351,6 +339,34 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     setSelectedMode(""); // resetea el Select
   };
 
+
+  // Reiniciar solo la tabla del jugador actual - MANUAL (botón "Nueva tabla")
+  const resetPlayerBoard = async () => {
+    if (!player) return;
+    
+    const updatedPlayers = {
+      ...roomData.players,
+      [playerName]: {
+        ...player,
+        board: generateBoard(),
+        markedIndices: [],
+      }
+    };
+
+    // Optimistic update: reemplazar tabla local antes de confirmar servidor
+    setRoomData((prev: any) => ({
+      ...(prev || {}),
+      players: updatedPlayers
+    }));
+
+    // Limpiar restricciones de modo
+    setFirstCard(null);
+
+    await gameSocket.emit("updateRoom", roomId, {
+      players: updatedPlayers,
+    });
+    setRanking([]);
+  };
 
   // Cantada automática de cartas (solo host)
   /* cambiar al servidor la logica de paso de carta
@@ -433,31 +449,6 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     }
   }, [currentCard, cantaditoActivo]);
 
-
-  // Reiniciar solo la tabla del jugador actual
-  const resetPlayerBoard = async () => {
-    if (!player) return;
-    const updatedPlayers = {
-      ...roomData.players,
-      [playerName]: {
-        ...player,
-        board: generateBoard(),
-        markedIndices: [],
-      }
-    };
-
-    // Optimistic update: reemplazar tabla local antes de confirmar servidor
-    setRoomData((prev: any) => ({
-      ...(prev || {}),
-      players: updatedPlayers
-    }));
-
-    await gameSocket.emit("updateRoom", roomId, {
-      players: updatedPlayers,
-    });
-    setRanking([]);
-  };
-
   // Manejo de inactividad
   useEffect(() => {
     const resetActivity = () => setLastActivity(Date.now());
@@ -482,15 +473,6 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
 
     return () => clearInterval(interval);
   }, [lastActivity]);
-
-
-  // Cuando el juego termina, resetea la carta inicial en todos los jugadores
-  useEffect(() => {
-    // Cuando el juego termina, resetea la carta inicial en todos los jugadores
-    if (!gameState.isGameActive) {
-      setFirstCard(null);
-    }
-  }, [gameState.isGameActive]);
 
   // Función que determina si una carta es clickeable según el modo y la primera carta seleccionada
   const isAllowed = (card: { row: number; col: number }) => {
