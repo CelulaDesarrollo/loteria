@@ -45,8 +45,7 @@ export function GameStartCountdownModal({
                     style={{
                         width: "clamp(140px, 50vw, 320px)",
                         height: "clamp(140px, 50vw, 320px)",
-                        fontSize: isCountingDown ? "clamp(6rem, 15vw, 12rem)" : "clamp(3rem, 10vw, 4rem)",
-                        lineHeight: "1.2",
+                        fontSize: isCountingDown ? "clamp(6rem, 15vw, 12rem)" : "clamp(2rem, 10vw, 3rem)",
                         textAlign: "center",
                         display: "flex",
                         alignItems: "center",
@@ -56,7 +55,13 @@ export function GameStartCountdownModal({
                     }}
                 >
                     {isCountingDown && <span>{countdownValue}</span>}
-                    {isYa && <span>¡A JUGAR!</span>}
+                    {isYa && (
+                        <div className="flex items-center justify-center h-full w-full">
+                            <span className="text-center">
+                                ¡JUGUEMOS!
+                            </span>
+                        </div>
+                    )}
                 </div>
             </AlertDialogContent>
         </AlertDialog>
