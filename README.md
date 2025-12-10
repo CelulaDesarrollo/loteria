@@ -49,7 +49,7 @@ Cada modo tiene sus propias condiciones de victoria implementadas en el sistema 
 | Lenguaje               | **TypeScript**                     | Tipado estático y seguridad en tiempo de compilación |
 | Estilos                | **Tailwind CSS + PostCSS**         | Diseño responsivo, fluido y personalizable           |
 | Componentes UI         | **shadcn/ui + Radix UI**           | Interfaz moderna, accesible y reutilizable           |
-| Backend en tiempo real | **Firebase Realtime Database**     | Sincronización de estado entre jugadores             |
+| Backend en tiempo real | **Render**                         | Sincronización de estado entre jugadores             |
 | Hosting                | **Vercel** *(sugerido)*            | Despliegue rápido y optimizado                       |
 | Control de versiones   | **Git + GitHub**                   | Colaboración y respaldo del código                   |
 
@@ -69,9 +69,8 @@ src/
 │        ├── Card.tsx            → Componente individual de la carta
 │        └── WinnerModal.tsx     → Modal para el anuncio del ganador
 ├── lib/
-│   ├── firebase.ts            → Configuración e inicialización de Firebase
-│   ├── firebaseRoom.ts        → Funciones de lectura y escritura en la base de datos (Firestore)
 │   ├── loteria.ts             → Lógica de generación y validación de tableros de Lotería
+│   ├── gameSocket.ts          → Gestión de la conexión (WebSockets) con Render
 │   └── utils.ts               → Funciones auxiliares y utilidades generales
 ```
 ##### Flujo de datos
