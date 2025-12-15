@@ -176,6 +176,13 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
   // Determina el modo efectivo (primero servidor, si no usar selección local)
   const effectiveMode = roomData?.gameState?.gameMode || selectedMode;
 
+  // Resetear firstCard cuando el juego termine (ganador, mazo agotado, o botón terminar juego)
+  useEffect(() => {
+    if (gameState && (!gameState.isGameActive || gameState.winner || (Array.isArray(gameState.finalRanking) && gameState.finalRanking.length > 0))) {
+      setFirstCard(null);
+    }
+  }, [gameState?.isGameActive, gameState?.winner, gameState?.finalRanking]);
+
   // Marcar carta
   const handleCardClick = async (card: CardType, index: number) => {
     if (!player || !gameState?.isGameActive) return;
@@ -346,7 +353,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
   // Reiniciar solo la tabla del jugador actual - MANUAL (botón "Nueva tabla")
   const resetPlayerBoard = async () => {
     if (!player) return;
-    
+
     const updatedPlayers = {
       ...roomData.players,
       [playerName]: {
