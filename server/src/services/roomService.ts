@@ -53,41 +53,8 @@ export class RoomService {
     }
   }
 
-  // lógica para manejar el intervalo de llamada de cartas por sala
-  static async initializeGame(roomId: string, gameMode: string): Promise<Room> {
-    const room = await this.getRoom(roomId);
-    if (!room) {
-      throw new Error(`Room ${roomId} not found during initialization.`);
-    }
-
-    // El mazo completo barajado (guardamos solo los IDs para que sea ligero)
-    const newDeck = createDeck().map(c => c.id);
-
-    // Limpiar marcas de jugadores
-    Object.keys(room.players).forEach(pName => {
-      room.players[pName].markedIndices = [];
-    });
-
-    // Asegurarse de que el estado sea un GameState completo
-    const newGameState: GameState = {
-      ...room.gameState,
-      deck: newDeck,
-      calledCardIds: [], // Empieza vacío
-      isGameActive: true,
-      winner: null,
-      gameMode: gameMode,
-      timestamp: Date.now(),
-      finalRanking: null,
-    };
-
-    room.gameState = newGameState;
-
-    await this.createOrUpdateRoom(roomId, room);
-    return room;
-  }
   // 2. Lógica atómica para llamar a la siguiente carta
   static async callNextCard(roomId: string, io: any): Promise<void> {
-    // Serializar por sala para evitar condiciones de carrera locales
     await this.enqueue(roomId, async () => {
       const room = await this.getRoom(roomId);
       if (!room) {
@@ -98,21 +65,35 @@ export class RoomService {
       const deck = room.gameState?.deck || [];
       const called = Array.isArray(room.gameState?.calledCardIds) ? [...room.gameState.calledCardIds] : [];
 
-      // ✅ VALIDAR que el deck no está corrupto
+      // ✅ VALIDAR deck
       if (!Array.isArray(deck) || deck.length === 0) {
-        console.error(`❌ callNextCard: deck inválido para ${roomId}`, { deckLength: deck?.length, deckType: typeof deck });
-        this.stopCallingCards(roomId);
+        console.error(`❌ callNextCard: deck inválido para ${roomId}`, { 
+          deckLength: deck?.length, 
+          deckType: typeof deck 
+        });
+        await this.stopCallingCards(roomId);
         return;
+      }
+
+      // ✅ VALIDAR called no tiene duplicados
+      if (called.length !== new Set(called).size) {
+        console.warn(`⚠️ callNextCard: duplicados detectados en called[${roomId}]`, {
+          totalCalled: called.length,
+          uniqueCalled: new Set(called).size,
+        });
+        // Limpiar duplicados
+        const unique = Array.from(new Set(called));
+        room.gameState.calledCardIds = unique;
+        await this.createOrUpdateRoom(roomId, room);
       }
 
       const remaining = deck.filter((id: any) => !called.includes(id));
       
-      // ✅ SI NO HAY CARTAS RESTANTES: detener intervalo automáticamente
+      // ✅ SI NO HAY CARTAS RESTANTES: detener y calcular ranking
       if (remaining.length === 0) {
-        console.log(`⏹️ Mazo agotado en sala ${roomId} (${called.length}/${deck.length} cartas llamadas). Deteniendo bucle.`);
+        console.log(`⏹️ Mazo agotado en sala ${roomId} (${called.length}/${deck.length} cartas). Deteniendo bucle.`);
         
-        // Detener el intervalo automáticamente
-        this.stopCallingCards(roomId);
+        await this.stopCallingCards(roomId);
         
         // Calcular ranking final
         const ranking = Object.values(room.players || {}).map((p: any) => ({
@@ -127,18 +108,17 @@ export class RoomService {
         room.gameState.timestamp = Date.now();
 
         await this.createOrUpdateRoom(roomId, room);
-        console.log(`📊 Ranking final calculado para ${roomId}:`, ranking);
+        console.log(`📊 Ranking final para ${roomId}:`, ranking);
         
-        // Notificar a todos los clientes
         io.to(roomId).emit("gameUpdated", room.gameState);
         io.to(roomId).emit("roomUpdated", room);
-        return; // ✅ Salir aquí
+        return;
       }
 
       // ✅ LLAMAR SIGUIENTE CARTA
       const nextId = remaining[0];
       called.push(nextId);
-      console.log(`🎴 Sala ${roomId} -> llamada carta id=${nextId} (${called.length}/${deck.length})`);
+      console.log(`🎴 Sala ${roomId} -> carta ${nextId} (${called.length}/${deck.length})`);
 
       room.gameState.calledCardIds = called;
       room.gameState.timestamp = Date.now();
@@ -151,51 +131,92 @@ export class RoomService {
 
   // 3. Iniciar el bucle de llamadas automáticas
   static async startCallingCards(roomId: string, io: any): Promise<void> {
-    // ✅ Si ya hay un intervalo corriendo, no crear otro
     if (cardIntervals.has(roomId)) {
-      console.log(`⏱️ Ya existe un bucle para ${roomId}, omitiendo nuevo inicio.`);
+      console.log(`⏱️ Bucle ya existe para ${roomId}`);
       return;
     }
 
-    // ✅ VALIDAR que hay deck y cartas pendientes antes de iniciar
     const room = await this.getRoom(roomId);
-    if (!room || !room.gameState || !Array.isArray(room.gameState.deck) || room.gameState.deck.length === 0) {
-      console.error(`❌ startCallingCards: no se puede iniciar bucle sin deck válido en ${roomId}`, {
-        roomExists: !!room,
-        gameStateExists: !!room?.gameState,
-        deckIsArray: Array.isArray(room?.gameState?.deck),
-        deckLength: room?.gameState?.deck?.length,
-      });
+    if (!room?.gameState?.deck || !Array.isArray(room.gameState.deck) || room.gameState.deck.length === 0) {
+      console.error(`❌ startCallingCards: deck inválido en ${roomId}`);
       return;
     }
 
-    console.log(`🚀 Iniciando bucle de cartas para ${roomId}`, {
-      deckSize: room.gameState.deck.length,
-      calledSoFar: room.gameState.calledCardIds?.length || 0,
-    });
+    console.log(`🚀 Iniciando bucle para ${roomId} (deck: ${room.gameState.deck.length}, llamadas: ${room.gameState.calledCardIds?.length || 0})`);
 
-    // Llamar una carta inmediatamente y luego programar el intervalo
     try {
       await this.callNextCard(roomId, io);
     } catch (e) {
-      console.error(`❌ Error al llamar la carta inicial para ${roomId}:`, e);
-      return; // No iniciar intervalo si falla la primera carta
+      console.error(`❌ Error en primera carta para ${roomId}:`, e);
+      return;
     }
 
-    // ✅ CREAR INTERVALO CON CLEANUP AUTOMÁTICO
-    const interval = setInterval(() => {
-      this.callNextCard(roomId, io).catch((err) => {
-        console.error(`❌ Error en callNextCard para ${roomId}:`, err);
-        // En caso de error crítico, detener el bucle
-        this.stopCallingCards(roomId);
-      });
+    // ✅ Crear intervalo con manejo robusto
+    let errorCount = 0;
+    const MAX_ERRORS = 5;
+
+    const interval = setInterval(async () => {
+      try {
+        await this.callNextCard(roomId, io);
+        errorCount = 0; // Reset en éxito
+      } catch (err) {
+        errorCount++;
+        console.error(`❌ Error en callNextCard [${errorCount}/${MAX_ERRORS}] para ${roomId}:`, err);
+        
+        if (errorCount >= MAX_ERRORS) {
+          console.error(`❌ Demasiados errores en ${roomId}. Deteniendo bucle.`);
+          this.stopCallingCards(roomId);
+        }
+      }
     }, CALL_INTERVAL);
 
     cardIntervals.set(roomId, interval);
-    console.log(`⏱️ Bucle de llamadas iniciado para sala ${roomId} (intervalo: ${CALL_INTERVAL / 1000}s)`);
+    console.log(`⏱️ Bucle iniciado para ${roomId} (${CALL_INTERVAL / 1000}s)`);
   }
 
   // 4. Detener el bucle de llamadas
   static async stopCallingCards(roomId: string): Promise<void> {
     const interval = cardIntervals.get(roomId);
-    if
+    if (interval) {
+      clearInterval(interval);
+      cardIntervals.delete(roomId);
+      console.log(`✅ Bucle detenido para ${roomId}`);
+    }
+  }
+
+  // ✅ NUEVO: Validar y limpiar deck al inicializar
+  static async initializeGame(roomId: string, gameMode: string): Promise<Room> {
+    const room = await this.getRoom(roomId);
+    if (!room) {
+      throw new Error(`Room ${roomId} no encontrada`);
+    }
+
+    const newDeck = createDeck().map(c => c.id);
+    
+    // ✅ Validar deck
+    if (!Array.isArray(newDeck) || newDeck.length !== 55) {
+      console.error(`❌ Deck inválido para ${roomId}:`, { deckLength: newDeck?.length });
+      throw new Error(`Deck debe tener 55 cartas, tiene ${newDeck?.length}`);
+    }
+
+    // Limpiar marcas
+    Object.keys(room.players).forEach(pName => {
+      room.players[pName].markedIndices = [];
+    });
+
+    room.gameState = {
+      ...room.gameState,
+      deck: newDeck,
+      calledCardIds: [],
+      isGameActive: true,
+      winner: null,
+      gameMode,
+      timestamp: Date.now(),
+      finalRanking: null,
+    };
+
+    await this.createOrUpdateRoom(roomId, room);
+    console.log(`🎮 Juego inicializado para ${roomId} (modo: ${gameMode})`);
+    return room;
+  }
+}
