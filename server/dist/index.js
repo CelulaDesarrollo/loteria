@@ -12,6 +12,8 @@ const loteria_1 = require("./services/loteria");
 const static_1 = __importDefault(require("@fastify/static"));
 const database_1 = require("./config/database");
 const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+const selfsigned_1 = __importDefault(require("selfsigned"));
 // Helper: calcular ranking final basado en markedIndices actuales
 const calculateFinalRanking = (players) => {
     return Object.values(players || {})
@@ -24,7 +26,20 @@ const calculateFinalRanking = (players) => {
 async function startServer() {
     // Inicializar base de datos (carga datos del archivo JSON si existen)
     await (0, database_1.initializeDatabase)();
-    const fastify = (0, fastify_1.default)({ logger: true });
+    // Generar certificado auto-firmado si no existe
+    if (!fs_1.default.existsSync('key.pem') || !fs_1.default.existsSync('cert.pem')) {
+        console.log('Generando certificado auto-firmado...');
+        const attrs = [{ name: 'commonName', value: 'localhost' }];
+        const pems = await selfsigned_1.default.generate(attrs, { expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) });
+        fs_1.default.writeFileSync('key.pem', pems.private);
+        fs_1.default.writeFileSync('cert.pem', pems.cert);
+        console.log('Certificado generado.');
+    }
+    const httpsOptions = {
+        key: fs_1.default.readFileSync('key.pem'),
+        cert: fs_1.default.readFileSync('cert.pem')
+    };
+    const fastify = (0, fastify_1.default)({ logger: true, https: httpsOptions });
     // Token de admin
     const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin_token_loteria"; // cambia en prod
     // Construir orígenes permitidos según entorno
