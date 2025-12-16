@@ -10,6 +10,8 @@ import fastifyStatic from "@fastify/static";
 import { initializeDatabase } from "./config/database";
 import path from "path";
 import { ServerResponse } from "http";
+import fs from "fs";
+import selfsigned from "selfsigned";
 
 // Helper: calcular ranking final basado en markedIndices actuales
 const calculateFinalRanking = (players: Record<string, Player>) => {
@@ -25,7 +27,22 @@ async function startServer() {
   // Inicializar base de datos (carga datos del archivo JSON si existen)
   await initializeDatabase();
   
-  const fastify = Fastify({ logger: true });
+  // Generar certificado auto-firmado si no existe
+  if (!fs.existsSync('key.pem') || !fs.existsSync('cert.pem')) {
+    console.log('Generando certificado auto-firmado...');
+    const attrs = [{ name: 'commonName', value: 'localhost' }];
+    const pems = await selfsigned.generate(attrs, { days: 365 } as any);
+    fs.writeFileSync('key.pem', pems.private);
+    fs.writeFileSync('cert.pem', pems.cert);
+    console.log('Certificado generado.');
+  }
+
+  const httpsOptions = {
+    key: fs.readFileSync('key.pem'),
+    cert: fs.readFileSync('cert.pem')
+  };
+  
+  const fastify = Fastify({ logger: true, https: httpsOptions });
 
   // Token de admin
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin_token_loteria"; // cambia en prod
@@ -740,8 +757,8 @@ function shuffleDeck(): number[] {
 }
 
 // Iniciar el servidor
-startServer().catch(err => {
-  console.error("Fatal error starting server:", err);
-  process.exit(1);
-});
+// startServer().catch(err => {
+//   console.error("Fatal error starting server:", err);
+//   process.exit(1);
+// });
 
