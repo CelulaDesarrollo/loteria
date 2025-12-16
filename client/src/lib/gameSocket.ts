@@ -1,9 +1,9 @@
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
-// Cambiar la URL base del servidor
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "https://loteria-gfrn.onrender.com";
-//const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://148.226.24.22:3001";
+// Usar ruta relativa para consumir desde el mismo dominio vía proxy en web.config
+// Esto permite que IIS reescriba las peticiones a /api/socket.io/ hacia localhost:3001
+const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "/api/socket.io/";
 interface PlayerData {
     name: string;
     isOnline: boolean;
@@ -19,11 +19,14 @@ class GameSocket {
 
     private constructor() {
         this.socket = io(SERVER_URL, {
-            transports: ["websocket"],
+            transports: ["websocket", "polling"],
             autoConnect: false,
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
+            secure: true,
+            rejectUnauthorized: false,
+            upgrade: true,
         });
 
         // Mantener lastRoom actualizado y propagar eventos
