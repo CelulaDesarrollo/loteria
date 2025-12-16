@@ -35,6 +35,164 @@ export class RoomService {
     );
   }
 
+  static async listRooms(): Promise<Room[]> {
+    const rows = await dbAllAsync<{ data: string }>('SELECT data FROM rooms', []);
+    return rows.map(row => {
+      try {
+        return JSON.parse(row.data) as Room;
+      } catch (e) {
+        console.error('listRooms: error parsing room:', e);
+        return null;
+      }
+    }).filter((r) => r !== null) as Room[];
+  }
+
+  static async deleteRoom(roomId: string): Promise<void> {
+    await this.stopCallingCards(roomId);
+    await dbRunAsync('DELETE FROM rooms WHERE id = ?', [roomId]);
+    console.log(`✅ Sala ${roomId} eliminada de la base de datos`);
+  }
+
+  static async addPlayer(roomId: string, playerName: string, playerData?: any): Promise<{ added: boolean; reason?: string }> {
+    const room = await this.getRoom(roomId) || {
+      players: {},
+      gameState: {
+        host: '',
+        isGameActive: false,
+        winner: null,
+        gameMode: '',
+        deck: [],
+        calledCardIds: [],
+        timestamp: Date.now(),
+        finalRanking: null,
+      },
+    };
+
+    // Validar límite de jugadores
+    const playerCount = Object.keys(room.players || {}).length;
+    if (playerCount >= MAX_PLAYERS_PER_ROOM) {
+      console.warn(`⚠️ Sala ${roomId} llena (${playerCount}/${MAX_PLAYERS_PER_ROOM})`);
+      return { added: false, reason: 'room_full' };
+    }
+
+    // Validar nombre único
+    if (room.players && room.players[playerName]) {
+      console.warn(`⚠️ Nombre ${playerName} ya existe en sala ${roomId}`);
+      return { added: false, reason: 'name_exists' };
+    }
+
+    // Agregar jugador
+    if (!room.players) room.players = {};
+    room.players[playerName] = {
+      name: playerName,
+      isOnline: true,
+      lastSeen: Date.now(),
+      markedIndices: [],
+      ...playerData,
+    };
+
+    // Si no hay host, asignar al primero
+    if (!room.gameState?.host && playerCount === 0) {
+      room.gameState = {
+        ...room.gameState,
+        host: playerName,
+      };
+    }
+
+    await this.createOrUpdateRoom(roomId, room);
+    console.log(`✅ Jugador ${playerName} añadido a sala ${roomId}`);
+    return { added: true };
+  }
+
+  static async removePlayer(roomId: string, playerName: string): Promise<void> {
+    const room = await this.getRoom(roomId);
+    if (!room || !room.players) return;
+
+    delete room.players[playerName];
+    console.log(`✅ Jugador ${playerName} removido de sala ${roomId}`);
+
+    // Si no hay más jugadores, eliminar la sala
+    if (Object.keys(room.players).length === 0) {
+      await this.deleteRoom(roomId);
+      console.log(`✅ Sala ${roomId} vacía, eliminada`);
+      return;
+    }
+
+    // Si el host se fue, reasignar
+    if (room.gameState?.host === playerName) {
+      const remainingPlayers = Object.keys(room.players);
+      room.gameState = {
+        ...room.gameState,
+        host: remainingPlayers[0] || '',
+      };
+      console.log(`🔄 Host reasignado a ${room.gameState.host} en sala ${roomId}`);
+    }
+
+    await this.createOrUpdateRoom(roomId, room);
+  }
+
+  static async markPlayerActive(roomId: string, playerName: string): Promise<void> {
+    const room = await this.getRoom(roomId);
+    if (!room?.players?.[playerName]) return;
+
+    room.players[playerName].isOnline = true;
+    room.players[playerName].lastSeen = Date.now();
+    await this.createOrUpdateRoom(roomId, room);
+  }
+
+  static async markPlayerOffline(roomId: string, playerName: string): Promise<void> {
+    const room = await this.getRoom(roomId);
+    if (!room?.players?.[playerName]) return;
+
+    room.players[playerName].isOnline = false;
+    room.players[playerName].lastSeen = Date.now();
+    await this.createOrUpdateRoom(roomId, room);
+  }
+
+  static async cleanupStalePlayers(timeoutMs: number = 5000): Promise<Array<{ roomId: string; room: Room | null }>> {
+    const rows = await dbAllAsync<{ id: string; data: string }>('SELECT id, data FROM rooms', []);
+    const changes: Array<{ roomId: string; room: Room | null }> = [];
+    const now = Date.now();
+
+    for (const row of rows) {
+      try {
+        const room = JSON.parse(row.data) as Room;
+        const roomId = row.id;
+        const stalePlayers = Object.entries(room.players || {})
+          .filter(([, player]) => !player.isOnline && (now - (player.lastSeen || 0)) > timeoutMs)
+          .map(([name]) => name);
+
+        if (stalePlayers.length > 0) {
+          console.log(`🧹 Limpiando ${stalePlayers.length} jugadores inactivos de sala ${roomId}`);
+          for (const playerName of stalePlayers) {
+            delete room.players[playerName];
+          }
+
+          if (Object.keys(room.players).length === 0) {
+            // Sala vacía, eliminar
+            await this.deleteRoom(roomId);
+            changes.push({ roomId, room: null });
+          } else {
+            // Reasignar host si es necesario
+            if (!room.gameState?.host || !room.players[room.gameState.host]) {
+              const remaining = Object.keys(room.players);
+              room.gameState = {
+                ...room.gameState,
+                host: remaining[0] || '',
+              };
+            }
+            await this.createOrUpdateRoom(roomId, room);
+            changes.push({ roomId, room });
+          }
+        }
+      } catch (e) {
+        console.error(`cleanupStalePlayers: error procesando sala ${row.id}:`, e);
+      }
+    }
+
+    return changes;
+  }
+
   // limpia todas las listas de players en la base de datos (mantiene gameState pero vacía host)
   static async clearAllPlayers(): Promise<void> {
     const rows = await dbAllAsync<{ id: string; data: string }>('SELECT id, data FROM rooms', []);
