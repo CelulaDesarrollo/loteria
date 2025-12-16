@@ -625,13 +625,24 @@ async function startServer() {
         }
       });
 
-      socket.on("startGameCountdown", async (roomId: string, gameMode: string) => {
+      socket.on("startGameCountdown", async (roomId: string, gameMode: string, callback?: Function) => {
         console.log("⏱️ startGameCountdown recibido:", { roomId, gameMode });
         try {
-          if (!roomId || !gameMode) return;
+          if (!roomId || !gameMode) {
+            if (typeof callback === 'function') callback({ success: false, error: 'invalid_params' });
+            return;
+          }
 
           const room = await RoomService.getRoom(roomId);
-          if (!room) return;
+          if (!room) {
+            if (typeof callback === 'function') callback({ success: false, error: 'room_not_found' });
+            return;
+          }
+
+          // ✅ Responder al cliente INMEDIATAMENTE (antes de los delays)
+          if (typeof callback === 'function') {
+            callback({ success: true });
+          }
 
           // Iniciar countdown: 3, 2, 1, 0 (YA)
           const countdownSequence = [3, 2, 1, 0];
@@ -654,25 +665,21 @@ async function startServer() {
           await new Promise(resolve => setTimeout(resolve, 500)); // pequeño delay tras "¡YA!"
           
           console.log(`🎮 Iniciando juego en ${roomId} modo ${gameMode}`);
-          room.gameState = {
-            ...(room.gameState || {}),
-            gameMode,
-            isGameActive: true,
-            winner: null,
-            calledCardIds: [],
-            deck: shuffleDeck(),
-            timestamp: Date.now(),
-          };
+          
+          // ✅ Usar initializeGame que gestiona el deck y las marcas correctamente
+          const updatedRoom = await RoomService.initializeGame(roomId, gameMode);
+          
+          io.to(roomId).emit("gameUpdated", updatedRoom.gameState);
+          io.to(roomId).emit("roomUpdated", updatedRoom);
 
-          await RoomService.createOrUpdateRoom(roomId, room);
-          io.to(roomId).emit("gameUpdated", room.gameState);
-          io.to(roomId).emit("roomUpdated", room);
-
-          // Iniciar bucle de llamadas de cartas
-          RoomService.startCallingCards(roomId, io);
+          // Iniciar el bucle de cartas
+          await RoomService.startCallingCards(roomId, io);
 
         } catch (e) {
           console.error("❌ Error en startGameCountdown:", e);
+          if (typeof callback === 'function') {
+            callback({ success: false, error: String(e) });
+          }
           socket.emit("startGameCountdownError", { error: String(e) });
         }
       });
