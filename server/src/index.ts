@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
 import fastifySocketIO from "fastify-socket.io";
@@ -6,6 +7,7 @@ import { RoomService } from "./services/roomService";
 import { Player } from "./types/game";
 import { checkWin } from "./services/loteria"; 
 import fastifyStatic from "@fastify/static";
+import { initializeDatabase } from "./config/database";
 import path from "path";
 import { ServerResponse } from "http";
 
@@ -20,13 +22,21 @@ const calculateFinalRanking = (players: Record<string, Player>) => {
 };
 
 async function startServer() {
+  // Inicializar base de datos (carga datos del archivo JSON si existen)
+  await initializeDatabase();
+  
   const fastify = Fastify({ logger: true });
 
   // Token de admin
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin_token_loteria"; // cambia en prod
 
+<<<<<<< HEAD
   // Construir orígenes permitidos según entorno (agrega aquí tus URLs de cliente)
   const PROD_CLIENT = process.env.CLIENT_URL_PROD || "https://loteriainfosegura.uv.mx";
+=======
+  // Construir orígenes permitidos según entorno
+  const PROD_CLIENT = process.env.CLIENT_URL_PROD || "https://loteria-infosegura-d9v8.vercel.app";
+>>>>>>> cca870a294f4f8612eeff57e4ff21bd2a7ff5408
   const DEV_CLIENT = process.env.CLIENT_URL_DEV || "http://localhost:9002";
   // URL adicional para administración
   const ADMIN_CLIENT = "https://loteria-infosegura-servidor.vercel.app";
@@ -36,6 +46,8 @@ async function startServer() {
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
     "http://127.0.0.1:9002",
+    "http://localhost",
+    "http://127.0.0.1",
     "http://148.226.24.22",
     "http://loteria-infosegura.uv.mx",
     "http://loteriainfosegura.uv.mx",
@@ -708,8 +720,13 @@ async function startServer() {
   await RoomService.clearAllPlayers();
   console.log("Se limpiaron players históricos en la DB.");
 
-  const port = parseInt(process.env.PORT || "3001", 10);
-  await fastify.listen({ port, host: "0.0.0.0" });
+  const port = parseInt(process.env.PORT || "3003", 10); // Usar PORT de Render o 3003 local
+  try {
+    await fastify.listen({ port, host: "0.0.0.0" });
+    console.log(`✅ Servidor escuchando en puerto ${port}`);
+  } catch (err) {
+    throw err;
+  }
 
 } // <-- cierre de la función startServer
 
@@ -732,4 +749,10 @@ function shuffleDeck(): number[] {
   }
   return deck;
 }
+
+// Iniciar el servidor
+// startServer().catch(err => {
+//   console.error("Fatal error starting server:", err);
+//   process.exit(1);
+// });
 
