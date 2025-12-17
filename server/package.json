@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "scripts": {
     "prebuild": "npm install typescript --force",
-    "build": "npm run prebuild && node ./node_modules/.bin/tsc",
+    "build": "npm run prebuild && npx tsc",
     "start": "node dist/index.js"
   },
   "dependencies": {
