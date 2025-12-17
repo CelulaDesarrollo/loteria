@@ -12,8 +12,6 @@ const loteria_1 = require("./services/loteria");
 const static_1 = __importDefault(require("@fastify/static"));
 const database_1 = require("./config/database");
 const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
-const selfsigned_1 = __importDefault(require("selfsigned"));
 // Helper: calcular ranking final basado en markedIndices actuales
 const calculateFinalRanking = (players) => {
     return Object.values(players || {})
@@ -26,20 +24,7 @@ const calculateFinalRanking = (players) => {
 async function startServer() {
     // Inicializar base de datos (carga datos del archivo JSON si existen)
     await (0, database_1.initializeDatabase)();
-    // Generar certificado auto-firmado si no existe
-    if (!fs_1.default.existsSync('key.pem') || !fs_1.default.existsSync('cert.pem')) {
-        console.log('Generando certificado auto-firmado...');
-        const attrs = [{ name: 'commonName', value: 'localhost' }];
-        const pems = await selfsigned_1.default.generate(attrs, { expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) });
-        fs_1.default.writeFileSync('key.pem', pems.private);
-        fs_1.default.writeFileSync('cert.pem', pems.cert);
-        console.log('Certificado generado.');
-    }
-    const httpsOptions = {
-        key: fs_1.default.readFileSync('key.pem'),
-        cert: fs_1.default.readFileSync('cert.pem')
-    };
-    const fastify = (0, fastify_1.default)({ logger: true, https: httpsOptions });
+    const fastify = (0, fastify_1.default)({ logger: true });
     // Token de admin
     const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin_token_loteria"; // cambia en prod
     // Construir orígenes permitidos según entorno
@@ -657,23 +642,12 @@ async function startServer() {
     // 4️⃣ Iniciar servidor: limpiar players históricos y levantar listener
     await roomService_1.RoomService.clearAllPlayers();
     console.log("Se limpiaron players históricos en la DB.");
-    const port = 3002; // Usar puerto 3002 (se puede cambiar via .env si está disponible)
+    const port = parseInt(process.env.PORT || "3003", 10); // Usar PORT de Render o 3003 local
     try {
         await fastify.listen({ port, host: "0.0.0.0" });
         console.log(`✅ Servidor escuchando en puerto ${port}`);
     }
     catch (err) {
-        if (err.code === 'EADDRINUSE') {
-            // Si 3002 está en uso, intenta 3003, 3004, etc.
-            for (let p = 3003; p < 3010; p++) {
-                try {
-                    await fastify.listen({ port: p, host: "0.0.0.0" });
-                    console.log(`✅ Servidor escuchando en puerto ${p} (3002 estaba en uso)`);
-                    return;
-                }
-                catch { }
-            }
-        }
         throw err;
     }
 } // <-- cierre de la función startServer
@@ -695,7 +669,7 @@ function shuffleDeck() {
     return deck;
 }
 // Iniciar el servidor
-startServer().catch(err => {
-    console.error("Fatal error starting server:", err);
-    process.exit(1);
-});
+// startServer().catch(err => {
+//   console.error("Fatal error starting server:", err);
+//   process.exit(1);
+// });

@@ -3,7 +3,7 @@ import type { Socket } from "socket.io-client";
 
 // Usar ruta relativa para consumir desde el mismo dominio vía proxy en web.config
 // Esto permite que IIS reescriba las peticiones a /api/socket.io/ hacia localhost:3001
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "/api/socket.io/";
+const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "https://loteria-gfrn.onrender.com";
 interface PlayerData {
     name: string;
     isOnline: boolean;
