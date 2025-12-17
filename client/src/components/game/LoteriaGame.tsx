@@ -228,7 +228,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       }));
 
       // 2️⃣ Emitir al servidor SIN esperar (fire and forget para no bloquear claimWin)
-      gameSocket.updateRoom?.(roomId, {
+      getGameSocket().updateRoom?.(roomId, {
         players: {
           ...(roomData?.players || {}),
           [playerName]: {
@@ -254,7 +254,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       });
 
       try {
-        const claimResult = await gameSocket.emit(
+        const claimResult = await getGameSocket().emit(
           "claimWin",
           roomId,
           playerName,
@@ -310,7 +310,8 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       console.log("🎮 Iniciando juego en modo:", selectedMode);
 
       // ✅ NUEVO: Emitir countdown antes de iniciar
-      await gameSocket.emit("startGameCountdown", roomId, selectedMode);
+      const socket = getGameSocket();
+      await socket.emit("startGameCountdown", roomId, selectedMode);
 
     } catch (error) {
       console.error("Error iniciando juego:", error);
@@ -341,7 +342,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     }));
 
     // Notificar servidor
-    await gameSocket.emit("updateRoom", roomId, {
+    await getGameSocket().emit("updateRoom", roomId, {
       gameState: newState
       // ❌ NO incluir players aquí
     });
@@ -374,7 +375,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     // Limpiar restricciones de modo
     setFirstCard(null);
 
-    await gameSocket.emit("updateRoom", roomId, {
+    await getGameSocket().emit("updateRoom", roomId, {
       players: updatedPlayers,
     });
     setRanking([]);
@@ -606,8 +607,9 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
 
                           // Avisar al servidor (no bloquear la UX si falla)
                           try {
-                            gameSocket.emit("stopGameLoop", roomId);
-                            await gameSocket.emit("updateRoom", roomId, {
+                            const socket = getGameSocket();
+                            socket.emit("stopGameLoop", roomId);
+                            await socket.emit("updateRoom", roomId, {
                               players: updatedPlayers,
                               gameState: {
                                 ...gameState,
