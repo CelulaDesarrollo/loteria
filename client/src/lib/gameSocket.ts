@@ -21,8 +21,8 @@ class GameSocket {
         console.log("[gameSocket] Inicializando con SERVER_URL:", SERVER_URL);
         
         this.socket = io(SERVER_URL, {
-            // ⭐ IMPORTANTE: Intentar websocket primero, luego fallback a polling
-            transports: ["websocket", "polling"],
+            // ⭐ RENDER NO SOPORTA WEBSOCKET BIEN - USAR SOLO POLLING
+            transports: ["polling"],
             autoConnect: false,
             reconnection: true,
             reconnectionAttempts: Infinity,
@@ -30,16 +30,17 @@ class GameSocket {
             reconnectionDelayMax: 5000,
             secure: true,
             rejectUnauthorized: false,
-            upgrade: true,
-            // Timeouts
-            connect_timeout: 20000,  // Aumentar a 20s para conexiones lentas
             path: "/socket.io/",
+            // Polling específico
+            query: {
+                // Puede ayudar con compatibilidad
+            }
         });
 
         // Logging para debugging
         this.socket.on("connect", () => {
             console.log("[gameSocket] ✅ Conectado a Render. Socket ID:", this.socket.id);
-            console.log("[gameSocket] Transport:", this.socket.io.engine.transport.name);
+            console.log("[gameSocket] Transport: polling");
         });
 
         this.socket.on("disconnect", (reason: string) => {
@@ -126,13 +127,13 @@ class GameSocket {
             return;
         }
 
-        console.log("[gameSocket] Iniciando conexión...");
+        console.log("[gameSocket] Iniciando conexión vía polling...");
         this.connecting = true;
         this.socket.connect();
 
         await new Promise<void>((resolve) => {
             const onConnect = () => {
-                console.log("[gameSocket] ✅ Conexión exitosa");
+                console.log("[gameSocket] ✅ Conexión exitosa vía polling");
                 this.socket.off("connect", onConnect);
                 this.socket.off("connect_error", onError);
                 this.connecting = false;
@@ -150,7 +151,7 @@ class GameSocket {
                 this.socket.off("connect", onConnect);
                 this.socket.off("connect_error", onError);
                 this.connecting = false;
-                console.warn("[gameSocket] ⚠️ Timeout en conexión (usando polling como fallback)");
+                console.warn("[gameSocket] ⚠️ Timeout en conexión (reintentando)");
                 resolve();
             }, timeoutMs);
         });
