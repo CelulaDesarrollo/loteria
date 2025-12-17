@@ -10,8 +10,6 @@ import fastifyStatic from "@fastify/static";
 import { initializeDatabase } from "./config/database";
 import path from "path";
 import { ServerResponse } from "http";
-import fs from "fs";
-import selfsigned from "selfsigned";
 
 // Helper: calcular ranking final basado en markedIndices actuales
 const calculateFinalRanking = (players: Record<string, Player>) => {
@@ -27,22 +25,7 @@ async function startServer() {
   // Inicializar base de datos (carga datos del archivo JSON si existen)
   await initializeDatabase();
   
-  // Generar certificado auto-firmado si no existe
-  if (!fs.existsSync('key.pem') || !fs.existsSync('cert.pem')) {
-    console.log('Generando certificado auto-firmado...');
-    const attrs = [{ name: 'commonName', value: 'localhost' }];
-    const pems = await selfsigned.generate(attrs, { days: 365 } as any);
-    fs.writeFileSync('key.pem', pems.private);
-    fs.writeFileSync('cert.pem', pems.cert);
-    console.log('Certificado generado.');
-  }
-
-  const httpsOptions = {
-    key: fs.readFileSync('key.pem'),
-    cert: fs.readFileSync('cert.pem')
-  };
-  
-  const fastify = Fastify({ logger: true, https: httpsOptions });
+  const fastify = Fastify({ logger: true });
 
   // Token de admin
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin_token_loteria"; // cambia en prod
@@ -716,21 +699,11 @@ async function startServer() {
   await RoomService.clearAllPlayers();
   console.log("Se limpiaron players históricos en la DB.");
 
-  const port = 3002; // Usar puerto 3002 (se puede cambiar via .env si está disponible)
+  const port = parseInt(process.env.PORT || "3003", 10); // Usar PORT de Render o 3003 local
   try {
     await fastify.listen({ port, host: "0.0.0.0" });
     console.log(`✅ Servidor escuchando en puerto ${port}`);
   } catch (err) {
-    if ((err as any).code === 'EADDRINUSE') {
-      // Si 3002 está en uso, intenta 3003, 3004, etc.
-      for (let p = 3003; p < 3010; p++) {
-        try {
-          await fastify.listen({ port: p, host: "0.0.0.0" });
-          console.log(`✅ Servidor escuchando en puerto ${p} (3002 estaba en uso)`);
-          return;
-        } catch {}
-      }
-    }
     throw err;
   }
 
