@@ -19,9 +19,8 @@ class GameSocket {
 
     private constructor() {
         console.log("[gameSocket] Inicializando con SERVER_URL:", SERVER_URL);
-        
+
         this.socket = io(SERVER_URL, {
-            // ⭐ RENDER NO SOPORTA WEBSOCKET BIEN - USAR SOLO POLLING
             transports: ["polling"],
             autoConnect: false,
             reconnection: true,
@@ -29,12 +28,13 @@ class GameSocket {
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             secure: true,
-            rejectUnauthorized: false,
             path: "/socket.io/",
-            // Polling específico
-            query: {
-                // Puede ayudar con compatibilidad
-            }
+            // Usar agent personalizado para ignorar errores SSL en desarrollo
+            // (En producción, esto requiere que Render tenga cert válido)
+            agent: false,
+            // Configuración específica para XHR polling
+            withCredentials: false,
+            upgrade: false,
         });
 
         // Logging para debugging
@@ -108,7 +108,7 @@ class GameSocket {
             console.log("[gameSocket] Ya conectado");
             return;
         }
-        
+
         if (this.connecting) {
             console.log("[gameSocket] Conexión en progreso, esperando...");
             await new Promise<void>((resolve) => {
@@ -139,11 +139,11 @@ class GameSocket {
                 this.connecting = false;
                 resolve();
             };
-            
+
             const onError = (error: any) => {
                 console.error("[gameSocket] ❌ Error en conexión:", error.message || error);
             };
-            
+
             this.socket.once("connect", onConnect);
             this.socket.on("connect_error", onError);
 
@@ -160,7 +160,7 @@ class GameSocket {
     async joinRoom(roomId: string, playerName: string, playerData: PlayerData) {
         console.log("[gameSocket] Intentando unirse a sala:", { roomId, playerName });
         await this.ensureConnection();
-        
+
         return new Promise<{ success: boolean; room?: any; error?: any }>((resolve) => {
             const onJoined = (room: any) => {
                 cleanup();
@@ -168,13 +168,13 @@ class GameSocket {
                 console.log("[gameSocket] ✅ Unión exitosa");
                 resolve({ success: true, room });
             };
-            
+
             const onError = (err: any) => {
                 cleanup();
                 console.error("[gameSocket] ❌ Error en unión:", err);
                 resolve({ success: false, error: err });
             };
-            
+
             const cleanup = () => {
                 this.socket.off("roomJoined", onJoined);
                 this.socket.off("joinError", onError);
@@ -186,7 +186,7 @@ class GameSocket {
             this.socket.once("error", onError);
 
             this.socket.emit("joinRoom", { roomId, playerName, playerData });
-            
+
             // Timeout de 10s para la unión
             setTimeout(() => {
                 cleanup();
@@ -207,16 +207,16 @@ class GameSocket {
     }
 
     updateRoom(roomId: string, payload: any): Promise<void> {
-      return new Promise<void>((resolve, reject) => {
-        try {
-          this.socket.emit("updateRoom", roomId, payload, (err?: any) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        } catch (e) {
-          reject(e);
-        }
-      });
+        return new Promise<void>((resolve, reject) => {
+            try {
+                this.socket.emit("updateRoom", roomId, payload, (err?: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            } catch (e) {
+                reject(e);
+            }
+        });
     }
 
     async emit(event: string, ...args: any[]): Promise<any> {
