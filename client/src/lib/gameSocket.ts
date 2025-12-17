@@ -2,7 +2,6 @@ import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
 // URL de Render - SIEMPRE debe ser https://loteria-gfrn.onrender.com
-// NO usar loteriainfosegura.uv.mx para WebSocket
 const SERVER_URL = "https://loteria-gfrn.onrender.com";
 
 interface PlayerData {
@@ -22,22 +21,25 @@ class GameSocket {
         console.log("[gameSocket] Inicializando con SERVER_URL:", SERVER_URL);
         
         this.socket = io(SERVER_URL, {
+            // ⭐ IMPORTANTE: Intentar websocket primero, luego fallback a polling
             transports: ["websocket", "polling"],
             autoConnect: false,
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
             secure: true,
             rejectUnauthorized: false,
             upgrade: true,
-            // Timeouts y debugging
-            connect_timeout: 10000,
-            reconnectionDelayMax: 5000,
+            // Timeouts
+            connect_timeout: 20000,  // Aumentar a 20s para conexiones lentas
+            path: "/socket.io/",
         });
 
         // Logging para debugging
         this.socket.on("connect", () => {
             console.log("[gameSocket] ✅ Conectado a Render. Socket ID:", this.socket.id);
+            console.log("[gameSocket] Transport:", this.socket.io.engine.transport.name);
         });
 
         this.socket.on("disconnect", (reason: string) => {
@@ -100,7 +102,7 @@ class GameSocket {
         return () => this.socket.off("gameStartCountdown", callback);
     }
 
-    async ensureConnection(timeoutMs = 5000): Promise<void> {
+    async ensureConnection(timeoutMs = 20000): Promise<void> {
         if (this.socket.connected) {
             console.log("[gameSocket] Ya conectado");
             return;
@@ -132,25 +134,23 @@ class GameSocket {
             const onConnect = () => {
                 console.log("[gameSocket] ✅ Conexión exitosa");
                 this.socket.off("connect", onConnect);
-                this.connecting = false;
-                resolve();
-            };
-            
-            const onError = () => {
-                console.error("[gameSocket] ❌ Fallo en la conexión");
                 this.socket.off("connect_error", onError);
                 this.connecting = false;
                 resolve();
             };
             
+            const onError = (error: any) => {
+                console.error("[gameSocket] ❌ Error en conexión:", error.message || error);
+            };
+            
             this.socket.once("connect", onConnect);
-            this.socket.once("connect_error", onError);
+            this.socket.on("connect_error", onError);
 
             setTimeout(() => {
                 this.socket.off("connect", onConnect);
                 this.socket.off("connect_error", onError);
                 this.connecting = false;
-                console.warn("[gameSocket] ⚠️ Timeout en conexión");
+                console.warn("[gameSocket] ⚠️ Timeout en conexión (usando polling como fallback)");
                 resolve();
             }, timeoutMs);
         });
@@ -185,6 +185,13 @@ class GameSocket {
             this.socket.once("error", onError);
 
             this.socket.emit("joinRoom", { roomId, playerName, playerData });
+            
+            // Timeout de 10s para la unión
+            setTimeout(() => {
+                cleanup();
+                console.error("[gameSocket] ❌ Timeout en unión a sala");
+                resolve({ success: false, error: "timeout" });
+            }, 10000);
         });
     }
 
