@@ -66,7 +66,24 @@ async function startServer() {
   // 2️⃣ Socket.IO con CORS explícito y transports adicionales
   await fastify.register(fastifySocketIO, {
     cors: {
-      origin: allowedOrigins,
+      // ✅ PERMITIR TODOS LOS ORÍGENES DURANTE DEBUGGING (luego restringir)
+      origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+        console.log(`🔍 Socket.IO CORS verificando origen: "${origin}"`);
+        
+        if (!origin) {
+          console.log("✅ Sin origen (local), permitiendo");
+          return callback(null, true);
+        }
+        
+        if (allowedOrigins.includes(origin)) {
+          console.log(`✅ Origen permitido: ${origin}`);
+          return callback(null, true);
+        }
+        
+        // Durante debugging, permitir cualquier origen
+        console.log(`⚠️ Origen no en lista pero permitiendo para debugging: ${origin}`);
+        return callback(null, true); // Cambiar a false para restringir en producción
+      },
       methods: ["GET", "POST"],
       credentials: true,
     },
@@ -127,12 +144,22 @@ async function startServer() {
 
     io.on("connection", (socket) => {
       console.log("✅ CLIENTE CONECTADO:", socket.id);
-      console.log("📍 Transport usado:", socket.handshake.headers.upgrade || "http-polling");
+      console.log("📍 Transport usado:", socket.handshake.headers.upgrade || socket.handshake.headers['connection'] || "http-polling");
       console.log("🔗 Origen:", socket.handshake.headers.origin);
+      console.log("🎯 Tipo de socket:", socket.conn?.transport?.name);
 
       console.log("Cliente conectado:", socket.id);
       socket.data.roomId = null;
       socket.data.playerName = null;
+
+      // Escuchar errores de conexión
+      socket.on("error", (error: any) => {
+        console.error("❌ Socket error:", error);
+      });
+
+      socket.on("connect_error", (error: any) => {
+        console.error("❌ Socket connect_error:", error);
+      });
 
       // Cliente solicita que el servidor valide una victoria
       socket.on("claimWin", async (roomId: string, playerName: string, payload: any, callback: Function) => {
