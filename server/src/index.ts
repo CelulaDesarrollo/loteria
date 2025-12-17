@@ -34,8 +34,12 @@ async function startServer() {
   const PROD_CLIENT = "https://loteriainfosegura.uv.mx";
   const RENDER_API = "https://loteria-gfrn.onrender.com";
 
-  const allowedOrigins = [PROD_CLIENT, RENDER_API];
   const isDev = process.env.NODE_ENV === "development";
+  
+  // Include localhost origins for development testing
+  const allowedOrigins = isDev 
+    ? [PROD_CLIENT, RENDER_API, "http://localhost:9002", "http://localhost:3000"]
+    : [PROD_CLIENT, RENDER_API];
 
   // Función de validador de origen SIMPLIFICADA
   const originValidator = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
