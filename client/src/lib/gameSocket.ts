@@ -44,6 +44,14 @@ class GameSocket {
         this.socket.on("disconnect", (reason: string) => {
             console.debug("[gameSocket] disconnected", reason);
         });
+
+        this.socket.on("connect_error", (error: any) => {
+            console.error("[gameSocket] connect_error:", error);
+        });
+
+        this.socket.on("error", (error: any) => {
+            console.error("[gameSocket] error:", error);
+        });
     }
 
     static getInstance() {
