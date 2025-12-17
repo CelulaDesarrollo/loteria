@@ -31,27 +31,27 @@ async function startServer() {
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin_token_loteria"; // cambia en prod
 
   // Construir orígenes permitidos según entorno (agrega aquí tus URLs de cliente)
-  const PROD_CLIENT = process.env.CLIENT_URL_PROD || "https://loteriainfosegura.uv.mx";
-  const DEV_CLIENT = process.env.CLIENT_URL_DEV || "http://localhost:9002";
-  // URL adicional para administración
-  const ADMIN_CLIENT = "https://loteria-infosegura-servidor.vercel.app";
-  const EXTRA_DEV = [
-    "http://localhost:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8080",
-    "http://127.0.0.1:9002",
-    "http://localhost",
-    "http://127.0.0.1",
-    "http://148.226.24.22",
-    "http://loteria-infosegura.uv.mx",
-    "http://loteriainfosegura.uv.mx",
-    "https://loteria-infosegura.uv.mx",
-    "https://loteriainfosegura.uv.mx",
-  ];
+  // CORS - Solo Render y loteriainfosegura.uv.mx en producción
+  const PROD_CLIENT = "https://loteriainfosegura.uv.mx";
+  const RENDER_API = "https://loteria-gfrn.onrender.com";
 
-  const allowedOrigins = new Set<string>([PROD_CLIENT, DEV_CLIENT, ADMIN_CLIENT, ...EXTRA_DEV]);
-  const isDev = process.env.NODE_ENV !== "production";
+  const allowedOrigins = new Set<string>([PROD_CLIENT, RENDER_API]);
+  const isDev = process.env.NODE_ENV === "development";
+
+  // Función de validador de origen
+  const originValidator = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) return cb(null, true); // allow requests without origin (e.g., curl, mobile apps)
+      if (allowedOrigins.has(origin)) return cb(null, true);
+      
+      // En desarrollo local, permitir localhost
+      if (isDev && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
+          console.warn("[CORS] Permitiendo origen en desarrollo:", origin);
+          return cb(null, true);
+      }
+      
+      console.warn("[CORS] Origen rechazado:", origin);
+      cb(new Error("Not allowed by CORS"), false);
+  };
 
   // Función de PreHandler de Autenticación
   const authenticateAdmin = (req: any, reply: any, done: () => void) => {
@@ -187,7 +187,7 @@ async function startServer() {
 
 
   // Helper para validar origin in runtime (puedes loguear para depuración)
-  const originValidator = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+  const originValidator2 = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) return cb(null, true); // allow non-browser tools / same-origin/no-origin (e.g. mobile native, curl)
     if (allowedOrigins.has(origin)) return cb(null, true);
     // En desarrollo puedes permitir todo temporalmente (opcional)
@@ -204,7 +204,7 @@ async function startServer() {
   // 1️⃣ CORS para endpoints normales (Fastify)
   await fastify.register(fastifyCors, {
     // casteo a any para evitar conflictos de firma entre versiones de tipos
-    origin: originValidator as any,
+    origin: originValidator2 as any,
     credentials: true,
   });
 
@@ -212,7 +212,7 @@ async function startServer() {
   await fastify.register(fastifySocketIO, {
     cors: {
       // casteo a any para evitar conflicto de tipos con la firma esperada por socket.io/factory
-      origin: originValidator as any,
+      origin: originValidator2 as any,
       methods: ["GET", "POST"],
       credentials: true,
     },

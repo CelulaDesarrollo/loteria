@@ -1,13 +1,9 @@
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
-<<<<<<< HEAD
-// Cambiar la URL base del servidor - Solo Render en producción
-=======
-// Usar ruta relativa para consumir desde el mismo dominio vía proxy en web.config
-// Esto permite que IIS reescriba las peticiones a /api/socket.io/ hacia localhost:3001
->>>>>>> cca870a294f4f8612eeff57e4ff21bd2a7ff5408
+// URL de Render - Solo para producción
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "https://loteria-gfrn.onrender.com";
+
 interface PlayerData {
     name: string;
     isOnline: boolean;
