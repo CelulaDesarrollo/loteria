@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card as CardType, generateBoard, checkWin, CARDS } from "@/lib/loteria";
 import { Play, RotateCw, LogOut, Volume2, VolumeOff } from "lucide-react";
 import { PlayerList } from "./PlayerList";
-import { gameSocket } from "@/lib/gameSocket";
+import { getGameSocket } from "@/lib/gameSocket";
 import {
   Select,
   SelectTrigger,
@@ -97,15 +97,17 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
 
   // Suscribirse a actualizaciones
   useEffect(() => {
-    const unsubscribeUpdate = gameSocket.onGameUpdate((newState) => {
+    const sock = getGameSocket();
+    
+    const unsubscribeUpdate = sock.onGameUpdate((newState) => {
       setRoomData((prev: any) => ({ ...prev, gameState: newState }));
     });
 
-    const unsubscribeRoom = gameSocket.onRoomUpdate((room) => {
+    const unsubscribeRoom = sock.onRoomUpdate((room) => {
       setRoomData(room);
     });
 
-    const unsubscribeJoin = gameSocket.onPlayerJoined(({ playerName, playerData }) => {
+    const unsubscribeJoin = sock.onPlayerJoined(({ playerName, playerData }) => {
       setRoomData((prev: any) => ({
         ...(prev || {}),
         players: {
@@ -115,7 +117,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       }));
     });
 
-    const unsubscribeLeft = gameSocket.onPlayerLeft(({ playerName }) => {
+    const unsubscribeLeft = sock.onPlayerLeft(({ playerName }) => {
       setRoomData((prev: any) => {
         const newPlayers = { ...(prev?.players || {}) };
         delete newPlayers[playerName];
@@ -123,7 +125,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
       });
     });
 
-    const unsubscribeClaimWin = gameSocket.onClaimWinResult((result) => {
+    const unsubscribeClaimWin = sock.onClaimWinResult((result) => {
       if (result.success) {
         console.log("✅ Victoria validada por servidor");
       } else {
@@ -132,7 +134,7 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
     });
 
     // ✅ NUEVO: Escuchar countdown de inicio
-    const unsubscribeCountdown = gameSocket.onGameStartCountdown?.((countdown: number) => {
+    const unsubscribeCountdown = sock.onGameStartCountdown?.((countdown: number) => {
       console.log("⏱️ Countdown recibido:", countdown);
       setGameStartCountdown(countdown);
       if (countdown === 0) {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { LoteriaGame } from "@/components/game/LoteriaGame";
-import { gameSocket } from "@/lib/gameSocket";
+import { getGameSocket } from "@/lib/gameSocket";
 
 export default function RoomPage() {
   const searchParams = useSearchParams();
@@ -54,11 +54,12 @@ export default function RoomPage() {
           return;
         }
 
-        // Intentar avisar al servidor usando gameSocket.leaveRoom si está conectado
+        // Intentar avisar al servidor usando getGameSocket().leaveRoom si está conectado
         (async () => {
           try {
-            if (gameSocket && typeof gameSocket.leaveRoom === "function") {
-              await gameSocket.leaveRoom(roomId, name);
+            const sock = getGameSocket();
+            if (sock && typeof sock.leaveRoom === "function") {
+              await sock.leaveRoom(roomId, name);
             } else if (navigator && (navigator as any).sendBeacon) {
               // fallback: enviar beacon a un endpoint /api/leaveRoom (si existe)
               try {
@@ -94,15 +95,17 @@ export default function RoomPage() {
   useEffect(() => {
     if (!roomId || !name) return;
 
+    const sock = getGameSocket();
+
     // Si no venimos con initialRoom en la URL, intentar obtener el último estado
     if (!roomData) {
-      const last = gameSocket.getLastRoom?.();
+      const last = sock.getLastRoom?.();
       if (last) {
         setRoomData(last);
         setLoading(false);
       } else {
         // si tampoco hay lastRoom, suscribirse una vez a roomJoined para recibirlo
-        const unsubRoom = gameSocket.onRoomJoined((room) => {
+        const unsubRoom = sock.onRoomJoined((room) => {
           setRoomData(room);
           setLoading(false);
         });
@@ -113,11 +116,11 @@ export default function RoomPage() {
       }
     }
 
-    const unsubscribeUpdate = gameSocket.onGameUpdate((newState) => {
+    const unsubscribeUpdate = sock.onGameUpdate((newState) => {
       setRoomData(prev => ({...prev, gameState: newState}));
     });
 
-    const unsubscribeJoin = gameSocket.onPlayerJoined(({playerName, playerData}) => {
+    const unsubscribeJoin = sock.onPlayerJoined(({playerName, playerData}) => {
       setRoomData(prev => ({
         ...prev,
         players: {
@@ -127,7 +130,7 @@ export default function RoomPage() {
       }));
     });
 
-    const unsubscribeLeft = gameSocket.onPlayerLeft(({playerName}) => {
+    const unsubscribeLeft = sock.onPlayerLeft(({playerName}) => {
       setRoomData(prev => {
         if (!prev?.players) return prev;
         const newPlayers = {...prev.players};
@@ -141,7 +144,7 @@ export default function RoomPage() {
       unsubscribeJoin();
       unsubscribeLeft();
       if (roomId && name) {
-        gameSocket.leaveRoom(roomId, name);
+        sock.leaveRoom(roomId, name);
       }
     };
   }, [roomId, name]);

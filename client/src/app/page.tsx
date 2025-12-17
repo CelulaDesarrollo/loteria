@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { gameSocket } from "@/lib/gameSocket";
+import { getGameSocket } from "@/lib/gameSocket";
 import { generateBoard } from "@/lib/loteria";
 import { Header } from "@/components/Header";
 import {
@@ -61,7 +61,7 @@ export default function Home() {
     };
 
     try {
-      const res = await gameSocket.joinRoom(roomId, playerName, playerData);
+      const res = await getGameSocket().joinRoom(roomId, playerName, playerData);
 
       if (!res.success) {
         if (res.error?.code === "full") {
