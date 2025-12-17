@@ -1,8 +1,9 @@
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
-// URL de Render - Solo para producción
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "https://loteria-gfrn.onrender.com";
+// URL de Render - SIEMPRE debe ser https://loteria-gfrn.onrender.com
+// NO usar loteriainfosegura.uv.mx para WebSocket
+const SERVER_URL = "https://loteria-gfrn.onrender.com";
 
 interface PlayerData {
     name: string;
@@ -18,6 +19,8 @@ class GameSocket {
     private lastRoom: any = null;
 
     private constructor() {
+        console.log("[gameSocket] Inicializando con SERVER_URL:", SERVER_URL);
+        
         this.socket = io(SERVER_URL, {
             transports: ["websocket", "polling"],
             autoConnect: false,
@@ -27,19 +30,32 @@ class GameSocket {
             secure: true,
             rejectUnauthorized: false,
             upgrade: true,
+            // Timeouts y debugging
+            connect_timeout: 10000,
+            reconnectionDelayMax: 5000,
         });
 
-        // Mantener lastRoom actualizado y propagar eventos
-        this.socket.on("roomJoined", (room: any) => {
-            this.lastRoom = room;
-        });
-
+        // Logging para debugging
         this.socket.on("connect", () => {
-            console.debug("[gameSocket] connected", this.socket.id);
+            console.log("[gameSocket] ✅ Conectado a Render. Socket ID:", this.socket.id);
         });
 
         this.socket.on("disconnect", (reason: string) => {
-            console.debug("[gameSocket] disconnected", reason);
+            console.warn("[gameSocket] ⚠️ Desconectado. Razón:", reason);
+        });
+
+        this.socket.on("connect_error", (error: any) => {
+            console.error("[gameSocket] ❌ Error de conexión:", error.message || error);
+        });
+
+        this.socket.on("error", (error: any) => {
+            console.error("[gameSocket] ❌ Error de socket:", error);
+        });
+
+        // Mantener lastRoom actualizado
+        this.socket.on("roomJoined", (room: any) => {
+            this.lastRoom = room;
+            console.log("[gameSocket] roomJoined received");
         });
     }
 
@@ -85,9 +101,13 @@ class GameSocket {
     }
 
     async ensureConnection(timeoutMs = 5000): Promise<void> {
-        if (this.socket.connected) return;
+        if (this.socket.connected) {
+            console.log("[gameSocket] Ya conectado");
+            return;
+        }
+        
         if (this.connecting) {
-            // wait until it's connected or timeout
+            console.log("[gameSocket] Conexión en progreso, esperando...");
             await new Promise<void>((resolve) => {
                 const check = () => {
                     if (this.socket.connected) {
@@ -104,37 +124,56 @@ class GameSocket {
             return;
         }
 
+        console.log("[gameSocket] Iniciando conexión...");
         this.connecting = true;
         this.socket.connect();
 
         await new Promise<void>((resolve) => {
             const onConnect = () => {
+                console.log("[gameSocket] ✅ Conexión exitosa");
                 this.socket.off("connect", onConnect);
                 this.connecting = false;
                 resolve();
             };
+            
+            const onError = () => {
+                console.error("[gameSocket] ❌ Fallo en la conexión");
+                this.socket.off("connect_error", onError);
+                this.connecting = false;
+                resolve();
+            };
+            
             this.socket.once("connect", onConnect);
+            this.socket.once("connect_error", onError);
 
             setTimeout(() => {
                 this.socket.off("connect", onConnect);
+                this.socket.off("connect_error", onError);
                 this.connecting = false;
+                console.warn("[gameSocket] ⚠️ Timeout en conexión");
                 resolve();
             }, timeoutMs);
         });
     }
 
     async joinRoom(roomId: string, playerName: string, playerData: PlayerData) {
+        console.log("[gameSocket] Intentando unirse a sala:", { roomId, playerName });
         await this.ensureConnection();
+        
         return new Promise<{ success: boolean; room?: any; error?: any }>((resolve) => {
             const onJoined = (room: any) => {
                 cleanup();
                 this.lastRoom = room;
+                console.log("[gameSocket] ✅ Unión exitosa");
                 resolve({ success: true, room });
             };
+            
             const onError = (err: any) => {
                 cleanup();
+                console.error("[gameSocket] ❌ Error en unión:", err);
                 resolve({ success: false, error: err });
             };
+            
             const cleanup = () => {
                 this.socket.off("roomJoined", onJoined);
                 this.socket.off("joinError", onError);
@@ -155,7 +194,7 @@ class GameSocket {
             this.socket.emit("leaveRoom", { roomId, playerName });
             this.lastRoom = null;
         } catch (e) {
-            // ignore
+            console.error("[gameSocket] Error en leaveRoom:", e);
         }
     }
 
@@ -172,33 +211,27 @@ class GameSocket {
       });
     }
 
-    // Wrapper mejorado para emitir con callback/respuesta del servidor
     async emit(event: string, ...args: any[]): Promise<any> {
         await this.ensureConnection();
         try {
             return new Promise<any>((resolve, reject) => {
                 try {
-                    // socket.io ack puede devolver cualquier número de args; normalmente 1 (response)
                     this.socket.emit(event, ...args, (...cbArgs: any[]) => {
-                        // Si no hay argumentos, resolver como undefined
                         if (!cbArgs || cbArgs.length === 0) return resolve(undefined);
-                        // Si el servidor usó convención error-first y pasa (err, res)
                         if (cbArgs.length === 2 && cbArgs[0]) return reject(cbArgs[0]);
-                        // Devolver el primer argumento como respuesta
                         return resolve(cbArgs[0]);
                     });
                 } catch (emitErr) {
-                    console.error("[gameSocket] emit internal error", emitErr);
+                    console.error("[gameSocket] emit error:", emitErr);
                     reject(emitErr);
                 }
             });
         } catch (e) {
-            console.error("[gameSocket] emit error", e);
+            console.error("[gameSocket] emit outer error:", e);
             throw e;
         }
     }
 
-    // Listener para respuesta de claimWin
     onClaimWinResult(callback: (result: { success: boolean; error?: string; alreadyWinner?: boolean }) => void) {
         this.socket.on("claimWinResult", callback);
         return () => this.socket.off("claimWinResult", callback);
