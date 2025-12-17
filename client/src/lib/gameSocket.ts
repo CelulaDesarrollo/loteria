@@ -21,12 +21,15 @@ class GameSocket {
         console.log("[gameSocket] Inicializando con SERVER_URL:", SERVER_URL);
 
         this.socket = io(SERVER_URL, {
-            transports: ["polling"],
+            transports: ["websocket", "polling"], // Websocket primero, luego polling como fallback
             autoConnect: false,
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
             path: "/socket.io/",
+            secure: true,
+            rejectUnauthorized: false, // Acepta certificados auto-firmados de Render
         });
 
         // Mantener lastRoom actualizado y propagar eventos
