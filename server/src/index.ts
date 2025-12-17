@@ -34,190 +34,47 @@ async function startServer() {
   const PROD_CLIENT = "https://loteriainfosegura.uv.mx";
   const RENDER_API = "https://loteria-gfrn.onrender.com";
 
-  const allowedOrigins = new Set<string>([PROD_CLIENT, RENDER_API]);
+  const allowedOrigins = [PROD_CLIENT, RENDER_API];
   const isDev = process.env.NODE_ENV === "development";
 
-  // Función de validador de origen
+  // Función de validador de origen SIMPLIFICADA
   const originValidator = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
-      if (!origin) return cb(null, true); // allow requests without origin (e.g., curl, mobile apps)
-      if (allowedOrigins.has(origin)) return cb(null, true);
-      
-      // En desarrollo local, permitir localhost
-      if (isDev && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
-          console.warn("[CORS] Permitiendo origen en desarrollo:", origin);
-          return cb(null, true);
-      }
-      
-      console.warn("[CORS] Origen rechazado:", origin);
-      cb(new Error("Not allowed by CORS"), false);
-  };
-
-  // Función de PreHandler de Autenticación
-  const authenticateAdmin = (req: any, reply: any, done: () => void) => {
-    const token = (req.headers['x-admin-token'] as string) || '';
-    if (token !== ADMIN_TOKEN) {
-      console.warn(`[Admin] Intento de acceso denegado. Token: ${token}`);
-      return reply.code(401).send({ error: 'unauthorized', message: 'Invalid X-Admin-Token' });
-    }
-    done();
-  };
-
-  // Helper para manejar errores de tipo 'unknown'
-  const errorToString = (e: unknown): string => {
-    if (e instanceof Error) return e.message;
-    return String(e);
-  };
-
-  // ✅ RUTA DE HEALTH CHECK / RAÍZ
-  fastify.route({
-    method: 'GET',
-    url: '/',
-    handler: async (req, reply) => {
-      return reply.send({ 
-        status: 'ok', 
-        message: 'Lotería Server en Render',
-        timestamp: new Date().toISOString()
-      });
-    }
-  });
-
-  // [D] Delete Single Room (Nuevo: Eliminar Sala Completa)
-  fastify.route({
-    method: 'DELETE',
-    url: '/admin/rooms/:roomId',
-    preHandler: [authenticateAdmin],
-    handler: async (req, reply) => {
-      const { roomId } = req.params as any;
-      try {
-        await RoomService.deleteRoom(roomId);
-
-        // Detener bucle de juego y notificar clientes
-        RoomService.stopCallingCards(roomId);
-        const io = fastify.io as Server | undefined;
-        if (io) {
-          io.to(roomId).emit("roomDeleted", { roomId });
-        }
-
-        return reply.send({ success: true, message: `Sala ${roomId} y su bucle de juego eliminados.` });
-      } catch (e) {
-        fastify.log.error({ err: e }, `Error al eliminar sala ${roomId}`);
-        return reply.code(500).send({ success: false, error: errorToString(e) });
-      }
-    }
-  });
-
-  // [D] Delete All Players (Nuevo: Limpieza masiva)
-  fastify.route({
-    method: 'DELETE',
-    url: '/admin/players/clear-all',
-    preHandler: [authenticateAdmin],
-    handler: async (req, reply) => {
-      try {
-        await RoomService.clearAllPlayers(); // Asumiendo que esta función notifica al cliente si es necesario
-        return reply.send({ success: true, message: 'Todos los jugadores históricos han sido eliminados de todas las salas.' });
-      } catch (e) {
-        fastify.log.error({ err: e }, 'Error en /admin/players/clear-all');
-        return reply.code(500).send({ success: false, error: 'Internal Server Error' });
-      }
-    }
-  });
-
-  // --- RUTAS ADMIN (protegidas por header x-admin-token) ---
-
-  // [R] Read All Rooms
-  fastify.route({
-    method: 'GET',
-    url: '/admin/rooms',
-    preHandler: [authenticateAdmin],
-    handler: async (req, reply) => {
-      const list = await RoomService.listRooms();
-      return reply.send({ success: true, count: list.length, rooms: list });
-    }
-  });
-
-  // [R] Read Single Room
-  fastify.route({
-    method: 'GET',
-    url: '/admin/rooms/:roomId',
-    preHandler: [authenticateAdmin],
-    handler: async (req, reply) => {
-      const { roomId } = req.params as any;
-      const room = await RoomService.getRoom(roomId);
-      if (!room) return reply.code(404).send({ success: false, message: `Sala ${roomId} no encontrada.` });
-      return reply.send({ success: true, id: roomId, room });
-    }
-  });
-
-  // [D] Delete Single Player (Ahora con DELETE y mejor lógica)
-  fastify.route({
-    method: 'DELETE',
-    url: '/admin/rooms/:roomId/players/:playerName',
-    preHandler: [authenticateAdmin],
-    handler: async (req, reply) => {
-      const { roomId, playerName } = req.params as any;
-      try {
-        await RoomService.removePlayer(roomId, playerName);
-
-        // Notificar por socket si está disponible
-        const io = fastify.io as Server | undefined;
-        const updated = await RoomService.getRoom(roomId);
-
-        if (io) {
-          // Notificar al cliente que el jugador se fue/fue eliminado
-          io.to(roomId).emit('playerLeft', { playerName });
-          io.to(roomId).emit('roomUpdated', updated);
-          if (updated?.gameState) io.to(roomId).emit('gameUpdated', updated.gameState);
-
-          // Desconectar sockets asociados a ese jugador/sala
-          io.sockets.sockets.forEach((s: any) => {
-            if (s.data?.roomId === roomId && s.data?.playerName === playerName) {
-              try { s.disconnect(true); } catch (_) { /* noop */ }
-            }
-          });
-        }
-
-        return reply.send({ success: true, message: `Jugador ${playerName} eliminado de la sala ${roomId}.` });
-      } catch (e) {
-        fastify.log.error({ err: e }, `Error al eliminar jugador ${playerName} de ${roomId}`);
-        return reply.code(500).send({ success: false, error: errorToString(e) });
-      }
-    }
-  });
-
-
-  // Helper para validar origin in runtime (puedes loguear para depuración)
-  const originValidator2 = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
-    if (!origin) return cb(null, true); // allow non-browser tools / same-origin/no-origin (e.g. mobile native, curl)
-    if (allowedOrigins.has(origin)) return cb(null, true);
-    // En desarrollo puedes permitir todo temporalmente (opcional)
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    
     if (isDev) {
-      console.warn("[CORS] origin not in allowlist, allowing in dev:", origin);
+      console.warn("[CORS] Permitiendo origen en desarrollo:", origin);
       return cb(null, true);
     }
+    
+    console.warn("[CORS] Origen rechazado:", origin);
     cb(new Error("Not allowed by CORS"), false);
   };
 
-  // Para referencia/depuración imprime lista de orígenes permitidos
-  console.log("CORS allowed origins:", Array.from(allowedOrigins));
+  console.log("✅ CORS allowed origins:", allowedOrigins);
 
   // 1️⃣ CORS para endpoints normales (Fastify)
   await fastify.register(fastifyCors, {
-    // casteo a any para evitar conflictos de firma entre versiones de tipos
-    origin: originValidator2 as any,
+    origin: allowedOrigins,
     credentials: true,
   });
 
-  // 2️⃣ Socket.IO con CORS explícito
+  // 2️⃣ Socket.IO con CORS explícito y transports adicionales
   await fastify.register(fastifySocketIO, {
     cors: {
-      // casteo a any para evitar conflicto de tipos con la firma esperada por socket.io/factory
-      origin: originValidator2 as any,
+      origin: allowedOrigins,  // Array de strings es más simple
       methods: ["GET", "POST"],
       credentials: true,
+      allowEIO3: true,  // Permitir Engine.IO v3 (compatibilidad)
     },
+    transports: ["websocket", "polling"],  // Soportar websocket y long-polling
     pingInterval: 25000,
     pingTimeout: 60000,
     maxHttpBufferSize: 1e6,
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 2 * 60 * 1000,
+      skipMiddlewares: true,
+    },
   });
 
   // Middleware para añadir headers restrictivos a imágenes
