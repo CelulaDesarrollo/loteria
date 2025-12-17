@@ -1,9 +1,11 @@
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
-// Must use HTTP to avoid SSL certificate validation errors with polling transport
-// socket.io-client will NOT auto-upgrade HTTP to HTTPS when using polling
-const SERVER_URL = "http://loteria-gfrn.onrender.com";
+// Connect to the same domain - IIS reverse proxy will forward to Render
+// This avoids mixed content (HTTPS) and certificate validation issues
+const SERVER_URL = typeof window !== "undefined" 
+  ? `${window.location.protocol}//${window.location.host}`
+  : "http://localhost:9002";
 
 interface PlayerData {
     name: string;
@@ -22,11 +24,12 @@ class GameSocket {
         console.log("[gameSocket] Inicializando con SERVER_URL:", SERVER_URL);
 
         this.socket = io(SERVER_URL, {
-            transports: ["polling"],
+            transports: ["websocket", "polling"],
             autoConnect: false,
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
+            path: "/socket.io/",
         });
 
         // Mantener lastRoom actualizado y propagar eventos
