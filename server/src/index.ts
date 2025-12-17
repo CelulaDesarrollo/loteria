@@ -62,19 +62,14 @@ async function startServer() {
   // 2️⃣ Socket.IO con CORS explícito y transports adicionales
   await fastify.register(fastifySocketIO, {
     cors: {
-      origin: allowedOrigins,  // Array de strings es más simple
+      origin: allowedOrigins,
       methods: ["GET", "POST"],
       credentials: true,
-      allowEIO3: true,  // Permitir Engine.IO v3 (compatibilidad)
     },
-    transports: ["websocket", "polling"],  // Soportar websocket y long-polling
+    transports: ["websocket", "polling"],
     pingInterval: 25000,
     pingTimeout: 60000,
     maxHttpBufferSize: 1e6,
-    connectionStateRecovery: {
-      maxDisconnectionDuration: 2 * 60 * 1000,
-      skipMiddlewares: true,
-    },
   });
 
   // Middleware para añadir headers restrictivos a imágenes
