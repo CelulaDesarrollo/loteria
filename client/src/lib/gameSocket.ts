@@ -1,11 +1,8 @@
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
-// Connect to the same domain - IIS reverse proxy will forward to Render
-// This avoids mixed content (HTTPS) and certificate validation issues
-const SERVER_URL = typeof window !== "undefined" 
-  ? `${window.location.protocol}//${window.location.host}`
-  : "http://localhost:9002";
+// Connect directly to Render backend
+const SERVER_URL = "https://loteria-gfrn.onrender.com";
 
 interface PlayerData {
     name: string;
