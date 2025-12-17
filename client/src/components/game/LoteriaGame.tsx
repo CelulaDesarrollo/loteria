@@ -636,7 +636,8 @@ export function LoteriaGame({ roomId, playerName, roomData: initialRoomData }: L
                         onValueChange={async (value) => {
                           setSelectedMode(value);
                           setFirstCard(null); // resetea la carta inicial al cambiar modo
-                          await gameSocket.emit("updateRoom", roomId, {
+                          const socket = getGameSocket();
+                          await socket.emit("updateRoom", roomId, {
                             gameState: {
                               ...roomData.gameState,
                               gameMode: value,
