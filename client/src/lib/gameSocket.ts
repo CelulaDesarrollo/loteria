@@ -1,9 +1,8 @@
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
-// Cambiar la URL base del servidor
+// Cambiar la URL base del servidor - Solo Render en producción
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "https://loteria-gfrn.onrender.com";
-//const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://148.226.24.22:3001";
 interface PlayerData {
     name: string;
     isOnline: boolean;

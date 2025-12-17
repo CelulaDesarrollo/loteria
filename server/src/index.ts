@@ -26,17 +26,20 @@ async function startServer() {
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin_token_loteria"; // cambia en prod
 
   // Construir orígenes permitidos según entorno (agrega aquí tus URLs de cliente)
-  const PROD_CLIENT = process.env.CLIENT_URL_PROD || "https://loteria-infosegura-d9v8.vercel.app";
+  const PROD_CLIENT = process.env.CLIENT_URL_PROD || "https://loteriainfosegura.uv.mx";
   const DEV_CLIENT = process.env.CLIENT_URL_DEV || "http://localhost:9002";
   // URL adicional para administración
   const ADMIN_CLIENT = "https://loteria-infosegura-servidor.vercel.app";
   const EXTRA_DEV = [
     "http://localhost:3000",
+    "http://localhost:8080",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:8080",
     "http://127.0.0.1:9002",
     "http://148.226.24.22",
     "http://loteria-infosegura.uv.mx",
     "http://loteriainfosegura.uv.mx",
+    "https://loteria-infosegura.uv.mx",
     "https://loteriainfosegura.uv.mx",
   ];
 
@@ -58,6 +61,19 @@ async function startServer() {
     if (e instanceof Error) return e.message;
     return String(e);
   };
+
+  // ✅ RUTA DE HEALTH CHECK / RAÍZ
+  fastify.route({
+    method: 'GET',
+    url: '/',
+    handler: async (req, reply) => {
+      return reply.send({ 
+        status: 'ok', 
+        message: 'Lotería Server en Render',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
 
   // [D] Delete Single Room (Nuevo: Eliminar Sala Completa)
   fastify.route({
