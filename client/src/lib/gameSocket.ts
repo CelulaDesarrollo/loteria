@@ -21,7 +21,7 @@ class GameSocket {
         console.log("[gameSocket] Inicializando con SERVER_URL:", SERVER_URL);
 
         this.socket = io(SERVER_URL, {
-            transports: ["websocket", "polling"], // Websocket primero, luego polling como fallback
+            transports: ["polling", "websocket"], // Polling PRIMERO como fallback más confiable
             autoConnect: false,
             reconnection: true,
             reconnectionAttempts: Infinity,
