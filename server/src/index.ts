@@ -67,7 +67,7 @@ async function startServer() {
   await fastify.register(fastifySocketIO, {
     cors: {
       // ✅ PERMITIR TODOS LOS ORÍGENES DURANTE DEBUGGING (luego restringir)
-      origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
         console.log(`🔍 Socket.IO CORS verificando origen: "${origin}"`);
         
         if (!origin) {
