@@ -21,7 +21,7 @@ class GameSocket {
         console.log("[gameSocket] Inicializando con SERVER_URL:", SERVER_URL);
 
         this.socket = io(SERVER_URL, {
-            transports: ["websocket", "polling"],
+            transports: ["polling"],
             autoConnect: false,
             reconnection: true,
             reconnectionAttempts: Infinity,
@@ -205,4 +205,11 @@ class GameSocket {
     }
 }
 
-export const gameSocket = GameSocket.getInstance();
+// Lazy initialization - Only create instance when first accessed at runtime
+let gameSockeInstance: GameSocket | null = null;
+export function getGameSocket(): GameSocket {
+    if (!gameSockeInstance) {
+        gameSockeInstance = GameSocket.getInstance();
+    }
+    return gameSockeInstance;
+}
