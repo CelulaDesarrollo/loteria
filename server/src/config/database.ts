@@ -6,7 +6,6 @@ const dbPath = join(__dirname, '../../data/loteria.db');
 export const db = new Database(dbPath);
 
 // Mejoras de concurrencia para SQLite (WAL + timeout)
-// usar db.run("PRAGMA ...") en vez de db.pragma() para que TypeScript no marque error
 try {
   db.run(`PRAGMA journal_mode = WAL;`);
   db.run(`PRAGMA synchronous = NORMAL;`);
@@ -50,3 +49,11 @@ db.serialize(() => {
     )
   `);
 });
+
+// Export initialization function (ya está todo hecho en el serialize)
+export const initializeDatabase = async (): Promise<void> => {
+  return new Promise((resolve) => {
+    // La tabla ya fue creada en db.serialize arriba
+    resolve();
+  });
+};
