@@ -4,7 +4,7 @@ import fastifySocketIO from "fastify-socket.io";
 import { Server } from "socket.io";
 import { RoomService } from "./services/roomService";
 import { Player } from "./types/game";
-import { checkWin } from "./services/loteria"; 
+import { checkWin } from "./services/loteria";
 import fastifyStatic from "@fastify/static";
 import { initializeDatabase } from "./config/database";
 import path from "path";
@@ -23,7 +23,7 @@ const calculateFinalRanking = (players: Record<string, Player>) => {
 async function startServer() {
   // Inicializar base de datos (carga datos del archivo JSON si existen)
   await initializeDatabase();
-  
+
   const fastify = Fastify({ logger: true });
 
   // Token de admin
@@ -41,12 +41,12 @@ async function startServer() {
   const originValidator = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
-    
+
     if (isDev) {
       console.warn("[CORS] Permitiendo origen en desarrollo:", origin);
       return cb(null, true);
     }
-    
+
     console.warn("[CORS] Origen rechazado:", origin);
     cb(new Error("Not allowed by CORS"), false);
   };
@@ -122,6 +122,10 @@ async function startServer() {
     }, CLEANUP_INTERVAL);
 
     io.on("connection", (socket) => {
+      console.log("✅ CLIENTE CONECTADO:", socket.id);
+      console.log("📍 Transport usado:", socket.handshake.headers.upgrade || "http-polling");
+      console.log("🔗 Origen:", socket.handshake.headers.origin);
+
       console.log("Cliente conectado:", socket.id);
       socket.data.roomId = null;
       socket.data.playerName = null;
@@ -164,7 +168,7 @@ async function startServer() {
           // Validar con lógica centralizada (pasando calledCardIds)
           const validWin = checkWin(board, markedIndices, mode, firstCard, calledCardIds);
           console.log(`✓ checkWin(${mode}) = ${validWin}`);
-          
+
           if (!validWin) {
             console.log("❌ checkWin devolvió false para", { playerName, mode, markedIndices: markedIndices.length });
             if (typeof callback === 'function') callback({ success: false, error: "invalid_pattern" });
@@ -186,7 +190,7 @@ async function startServer() {
             isGameActive: false,
             timestamp: Date.now(),
           };
-          
+
           // Calcular ranking con markedIndices intactos
           const finalRanking = calculateFinalRanking(room.players as Record<string, Player>);
           room.gameState.finalRanking = finalRanking;
@@ -199,12 +203,12 @@ async function startServer() {
           // 📡 EMITIR A TODOS EN LA SALA
           io.to(roomId).emit("gameUpdated", room.gameState);
           io.to(roomId).emit("roomUpdated", room);
-          
+
           // ✅ RESPONDER AL CLIENTE (solo una vez)
           if (typeof callback === 'function') {
             callback({ success: true });
           }
-          
+
         } catch (e) {
           console.error("❌ Error en claimWin:", e);
           if (typeof callback === 'function') {
@@ -524,7 +528,7 @@ async function startServer() {
 
           for (let i = 0; i < countdownSequence.length; i++) {
             const countdown = countdownSequence[i];
-            
+
             // Esperar 1 segundo (excepto en el primero que va inmediato)
             if (i > 0) {
               await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -537,12 +541,12 @@ async function startServer() {
 
           // ✅ Después del countdown (3, 2, 1, 0), iniciar el juego
           await new Promise(resolve => setTimeout(resolve, 500)); // pequeño delay tras "¡YA!"
-          
+
           console.log(`🎮 Iniciando juego en ${roomId} modo ${gameMode}`);
-          
+
           // ✅ Usar initializeGame que gestiona el deck y las marcas correctamente
           const updatedRoom = await RoomService.initializeGame(roomId, gameMode);
-          
+
           io.to(roomId).emit("gameUpdated", updatedRoom.gameState);
           io.to(roomId).emit("roomUpdated", updatedRoom);
 
