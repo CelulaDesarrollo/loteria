@@ -30,13 +30,8 @@ async function startServer() {
   // Token de admin
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin_token_loteria"; // cambia en prod
 
-<<<<<<< HEAD
   // Construir orígenes permitidos según entorno (agrega aquí tus URLs de cliente)
   const PROD_CLIENT = process.env.CLIENT_URL_PROD || "https://loteriainfosegura.uv.mx";
-=======
-  // Construir orígenes permitidos según entorno
-  const PROD_CLIENT = process.env.CLIENT_URL_PROD || "https://loteria-infosegura-d9v8.vercel.app";
->>>>>>> cca870a294f4f8612eeff57e4ff21bd2a7ff5408
   const DEV_CLIENT = process.env.CLIENT_URL_DEV || "http://localhost:9002";
   // URL adicional para administración
   const ADMIN_CLIENT = "https://loteria-infosegura-servidor.vercel.app";
