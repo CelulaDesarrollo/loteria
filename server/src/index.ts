@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
 import fastifySocketIO from "fastify-socket.io";
