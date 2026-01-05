@@ -100,19 +100,33 @@ export default function RoomPage() {
     // Si no venimos con initialRoom en la URL, intentar obtener el último estado
     if (!roomData) {
       const last = sock.getLastRoom?.();
-      if (last) {
+      if (last && last.players?.[name]) {
         setRoomData(last);
         setLoading(false);
       } else {
-        // si tampoco hay lastRoom, suscribirse una vez a roomJoined para recibirlo
-        const unsubRoom = sock.onRoomJoined((room) => {
-          setRoomData(room);
-          setLoading(false);
-        });
-        // cleanup al desmontar
-        return () => {
-          unsubRoom();
-        };
+        // Asegurar que el socket está conectado antes de esperar roomJoined
+        (async () => {
+          await sock.ensureConnection();
+          // Intentar rejoin si no estamos en la sala
+          const result = await sock.joinRoom(roomId, name, {
+            name,
+            isOnline: true,
+            board: last?.players?.[name]?.board || [],
+            markedIndices: [],
+          });
+          if (result.success && result.room) {
+            setRoomData(result.room);
+            setLoading(false);
+          } else {
+            const unsubRoom = sock.onRoomJoined((room) => {
+              setRoomData(room);
+              setLoading(false);
+            });
+            return () => {
+              unsubRoom();
+            };
+          }
+        })();
       }
     }
 
