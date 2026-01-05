@@ -83,7 +83,11 @@ export default function Home() {
       }
 
       // navegar a la sala
-      router.push(`/room/${roomId}?name=${encodeURIComponent(playerName)}`);
+      router.push(
+        `/room/${roomId}?name=${encodeURIComponent(playerName)}&initialRoom=${encodeURIComponent(
+          JSON.stringify(res.room)
+        )}`
+      );
     } catch (err) {
       console.error("joinRoom error:", err);
       setShowNameExistsModal(true);
