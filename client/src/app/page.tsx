@@ -84,9 +84,7 @@ export default function Home() {
 
       // navegar a la sala
       router.push(
-        `/room/${roomId}?name=${encodeURIComponent(playerName)}&initialRoom=${encodeURIComponent(
-          JSON.stringify(res.room)
-        )}`
+        `/room/${roomId}?name=${encodeURIComponent(playerName)}`
       );
     } catch (err) {
       console.error("joinRoom error:", err);

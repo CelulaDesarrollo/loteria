@@ -104,29 +104,15 @@ export default function RoomPage() {
         setRoomData(last);
         setLoading(false);
       } else {
-        // Asegurar que el socket está conectado antes de esperar roomJoined
-        (async () => {
-          await sock.ensureConnection();
-          // Intentar rejoin si no estamos en la sala
-          const result = await sock.joinRoom(roomId, name, {
-            name,
-            isOnline: true,
-            board: last?.players?.[name]?.board || [],
-            markedIndices: [],
-          });
-          if (result.success && result.room) {
-            setRoomData(result.room);
-            setLoading(false);
-          } else {
-            const unsubRoom = sock.onRoomJoined((room) => {
-              setRoomData(room);
-              setLoading(false);
-            });
-            return () => {
-              unsubRoom();
-            };
-          }
-        })();
+        // Esperar a que el socket emita roomJoined
+        const unsubRoom = sock.onRoomJoined((room) => {
+          console.log("[RoomPage] Recibido roomJoined:", room);
+          setRoomData(room);
+          setLoading(false);
+        });
+        return () => {
+          unsubRoom();
+        };
       }
     }
 
@@ -157,9 +143,7 @@ export default function RoomPage() {
       unsubscribeUpdate();
       unsubscribeJoin();
       unsubscribeLeft();
-      if (roomId && name) {
-        sock.leaveRoom(roomId, name);
-      }
+      // NO llamar leaveRoom aquí - dejar que el servidor maneje la desconexión automática
     };
   }, [roomId, name]);
 
