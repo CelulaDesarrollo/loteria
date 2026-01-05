@@ -1,0 +1,70 @@
+{
+    "name": "loteria-infosegura-desktop",
+    "version": "1.0.0",
+    "description": "Lotería InfoSegura - Aplicación de Escritorio",
+    "main": "main.js",
+    "homepage": "./",
+    "scripts": {
+        "start": "electron .",
+        "build": "cd ../client && npm run build && cd ../desktop && npm run package",
+        "package": "electron-builder --win --publish never",
+        "package-exe": "electron-builder --win nsis --publish never"
+    },
+    "author": "UV",
+    "license": "MIT",
+    "build": {
+        "appId": "com.uv.loteria-infosegura",
+        "productName": "Lotería InfoSegura",
+        "files": [
+            "main.js",
+            "preload.js",
+            "package.json",
+            "node_modules//*"
+        ],
+        "extraResources": [
+            {
+                "from": "client/out",
+                "to": "client/out",
+                "filter": [
+                    "/*"
+                ]
+            }
+        ],
+        "directories": {
+            "buildResources": "../client/public"
+        },
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "portable",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "icon": "icono-uv.ico"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "Lotería InfoSegura"
+        }
+    },
+    "devDependencies": {
+        "electron": "32.0.0",
+        "electron-builder": "25.0.5",
+        "png-to-ico": "^3.0.1"
+    },
+    "dependencies": {
+        "express": "^4.18.2",
+        "imagemagick": "^0.1.3"
+    }
+}
