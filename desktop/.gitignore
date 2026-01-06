@@ -1,3 +1,10 @@
 node_modules/
 
 dist/
+
+client/
+
+out/
+
+*.exe
+*.mp3
