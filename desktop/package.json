@@ -6,7 +6,7 @@
     "homepage": "./",
     "scripts": {
         "start": "electron .",
-        "build": "cd ../client && npm run build && cd ../desktop && npm run package",
+        "build": "cd ../client && npm run build && cd ../desktop && node scripts/copyClientOut.js && npm run package",
         "package": "electron-builder --win --publish never",
         "package-exe": "electron-builder --win nsis --publish never"
     },
@@ -22,13 +22,13 @@
             "node_modules//*"
         ],
         "extraResources": [
-            {
-                "from": "client/out",
-                "to": "client/out",
-                "filter": [
-                    "/*"
-                ]
-            }
+                {
+                    "from": "client/out",
+                    "to": "client/out",
+                    "filter": [
+                        "**/*"
+                    ]
+                }
         ],
         "directories": {
             "buildResources": "../client/public"

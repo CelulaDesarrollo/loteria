@@ -1,0 +1,32 @@
+directories:
+  output: dist
+  buildResources: ../client/public
+appId: com.uv.loteria-infosegura
+productName: Lotería InfoSegura
+files:
+  - filter:
+      - main.js
+      - preload.js
+      - package.json
+      - node_modules//*
+extraResources:
+  - from: client/out
+    to: client/out
+    filter:
+      - '**/*'
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: icono-uv.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Lotería InfoSegura
+electronVersion: 32.0.0

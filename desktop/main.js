@@ -66,22 +66,11 @@ async function createWindow() {
   });
 
   try {
-    if (app.isPackaged) {
-      const indexFile = path.join(buildDir, 'index.html');
-      if (!fs.existsSync(indexFile)) {
-        const msg = `No se encontró ${indexFile}. Asegúrate de incluir client/out en los archivos de build.`;
-        console.error(msg);
-        dialog.showErrorBox('Error cargando la aplicación', msg);
-        app.quit();
-        return;
-      }
-      await mainWindow.loadFile(indexFile);
-      console.log('Aplicación cargada desde archivos empaquetados');
-    } else {
-      await startLocalServer(buildDir);
-      await mainWindow.loadURL(`http://127.0.0.1:${PORT}`);
-      console.log('Aplicación cargada en modo desarrollo');
-    }
+    // Start a local static server to serve the exported `client/out` files
+    // This keeps asset paths working the same as in development (no absolute file:// issues)
+    await startLocalServer(buildDir);
+    await mainWindow.loadURL(`http://127.0.0.1:${PORT}`);
+    console.log(app.isPackaged ? 'Aplicación cargada desde archivos empaquetados vía servidor local' : 'Aplicación cargada en modo desarrollo (servidor local)');
   } catch (err) {
     console.error('Error cargando la aplicación:', err);
     dialog.showErrorBox('Error cargando la aplicación', String(err));
